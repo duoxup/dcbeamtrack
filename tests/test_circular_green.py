@@ -11,40 +11,8 @@ from dcbeamtrack import (
     TrackConfig,
     UniformMagneticField,
 )
-from dcbeamtrack.constants import EPS0
 from dcbeamtrack.tracking import velocity_to_momentum_evc
-
-
-def _direct_mirror_charge_field(x: np.ndarray, y: np.ndarray, q: np.ndarray, radius: float):
-    """Reference O(N**2) mirror-charge field for a grounded circular pipe.
-
-    Direct line-charge contribution plus a single image charge of opposite sign at
-    the inverse point ``(radius**2 / r_j**2) * (x_j, y_j)``.
-    """
-    coef = 1.0 / (2.0 * np.pi * EPS0)
-    n = x.size
-    ex = np.zeros(n)
-    ey = np.zeros(n)
-    for i in range(n):
-        for j in range(n):
-            if i == j:
-                continue
-            dx = x[i] - x[j]
-            dy = y[i] - y[j]
-            r2 = dx * dx + dy * dy
-            ex[i] += coef * q[j] * dx / r2
-            ey[i] += coef * q[j] * dy / r2
-
-            r_src2 = x[j] * x[j] + y[j] * y[j]
-            scale = (radius * radius) / r_src2
-            xi_img = scale * x[j]
-            yi_img = scale * y[j]
-            dxi = x[i] - xi_img
-            dyi = y[i] - yi_img
-            r2_img = dxi * dxi + dyi * dyi
-            ex[i] -= coef * q[j] * dxi / r2_img
-            ey[i] -= coef * q[j] * dyi / r2_img
-    return ex, ey
+from _helpers import direct_mirror_charge_field
 
 
 def _slice(x, y, lam=None) -> SliceDistribution:
@@ -111,7 +79,7 @@ def test_circular_green_matches_direct_mirror_charge_on_grid_nodes():
     lam = np.array([1.0e-12, 0.7e-12, 1.3e-12, 0.5e-12])
 
     fm = solver.solve(_slice(x, y, lam=lam))
-    ex_ref, ey_ref = _direct_mirror_charge_field(x, y, lam, radius)
+    ex_ref, ey_ref = direct_mirror_charge_field(x, y, lam, radius)
 
     scale = max(np.max(np.abs(ex_ref)), np.max(np.abs(ey_ref)))
     np.testing.assert_allclose(fm.ex, ex_ref, atol=1.0e-9 * scale)

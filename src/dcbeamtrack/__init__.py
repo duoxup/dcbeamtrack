@@ -11,6 +11,8 @@ from .fields import AxialMagneticField, MagneticField, UniformMagneticField
 from .mesh import AnnulusGrid, RectGrid, TriGrid
 from .simulation import DcBeamSimulation
 from .spacecharge import (
+    AnalyticMirrorChargeFieldMap,
+    AnalyticMirrorChargeSpaceChargeSolver,
     CircularGreenFieldMap,
     CircularGreenSpaceChargeSolver,
     FieldMap2D,
@@ -23,6 +25,8 @@ from .tracking import SliceTrackResult, track_slice
 
 __all__ = [
     "__version__",
+    "AnalyticMirrorChargeFieldMap",
+    "AnalyticMirrorChargeSpaceChargeSolver",
     "AxialMagneticField",
     "CallableDensity",
     "CircularBoundary",
