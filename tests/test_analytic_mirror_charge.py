@@ -55,3 +55,13 @@ def test_analytic_two_particle_symmetry_about_xaxis():
 
     np.testing.assert_allclose(fm.ex[0], fm.ex[1], rtol=1e-10, atol=1e-10)
     np.testing.assert_allclose(fm.ey[0], -fm.ey[1], rtol=1e-10, atol=1e-10)
+
+
+def test_analytic_field_at_size_mismatch_raises():
+    solver = AnalyticMirrorChargeSpaceChargeSolver(radius=1.0e-3)
+    x = np.array([0.0, 1.0e-4])
+    y = np.array([0.0, 0.0])
+    fm = solver.solve(_slice(x, y))
+
+    with pytest.raises(NotImplementedError):
+        fm.field_at(np.array([0.0]), np.array([0.0]))
