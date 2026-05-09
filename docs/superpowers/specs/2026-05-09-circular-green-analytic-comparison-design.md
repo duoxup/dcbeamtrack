@@ -156,7 +156,7 @@ python scripts/compare_cir_v1_analytic.py \
 新增 5 个测试：
 
 1. `test_analytic_two_particle_symmetry_about_xaxis` — analytic 自身对称性
-2. `test_analytic_matches_pure_python_reference` — analytic numba 与 `tests/test_circular_green.py:_direct_mirror_charge_field` 在小样本严格匹配，atol ~1e-12
+2. `test_analytic_matches_pure_python_reference` — analytic numba 与 `tests/test_circular_green.py:_direct_mirror_charge_field` 在小样本严格匹配。`atol = 1e-10 * scale`（`scale = max(|E_ref|)`），余量给 numba `fastmath=True` 可能引入的浮点重排（fma、并行求和顺序）
 3. `test_analytic_skips_wall_hit_sources` — 与 Green solver 同行为
 4. `test_analytic_field_at_size_mismatch_raises`
 5. `test_circular_green_within_tolerance_of_analytic_off_grid` — 随机 off-grid 粒子（`n_r=200, n_theta=720`），`max_rel_err ≤ 5e-2`，作为 Green 全局回退的 canary
@@ -172,7 +172,7 @@ python scripts/compare_cir_v1_analytic.py \
 不动旧内容，只增量：
 
 1. 顶部日期头 → `2026-05-09（圆管 Green analytic 对照就位）`
-2. "圆管 Green solver" 小节末尾追加：`analytic mirror-charge 对照实现 ...（无离散网格、O(N²) numba）作为长期 ground truth；off-grid 误差实测见 docs/.../static_summary.json`
+2. "圆管 Green solver" 小节末尾追加一行：`analytic mirror-charge 对照实现 AnalyticMirrorChargeSpaceChargeSolver（无离散网格、O(N²) numba）作为长期 ground truth；off-grid 误差实测见 artifacts/analytic_vs_green/static_summary.json`
 3. "当前测试状态" 测试列表加一条 analytic 对照覆盖；测试总数 27 → 32
 4. "近期计划 §4 圆管 Green solver 后续" — 把 analytic ground truth 脚本与 t2d 风格端到端对照两条标为已完成；保留未完成的 `field_at` off-source、性能两条
 5. 新增 "analytic mirror-charge 对照" 小节，记录三脚本各自用途、t2d_cir_V1 端到端对照实测数字、`n_theta` 收敛趋势
