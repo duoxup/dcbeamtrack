@@ -99,3 +99,35 @@ def test_analytic_skips_wall_hit_sources():
 
     assert not np.allclose(fm_full.ex, fm_masked.ex)
     assert fm_masked.ex[1] == 0.0 and fm_masked.ey[1] == 0.0
+
+
+def test_circular_green_within_tolerance_of_analytic_off_grid():
+    """Canary: detect global regression in CircularGreenSpaceChargeSolver.
+
+    Off-grid (random) particles, finely-resolved polar grid. The threshold of 5%
+    is engineering headroom — far above the typical ~1% off-grid error observed
+    in scripts/static_compare_analytic_vs_green.py — so this test only fires on
+    formula regressions, not on routine interpolation noise.
+    """
+    from dcbeamtrack import CircularGreenSpaceChargeSolver
+
+    radius = 1.0e-3
+    rng = np.random.default_rng(11)
+    n = 64
+    r = rng.uniform(0.05 * radius, 0.85 * radius, size=n)
+    th = rng.uniform(0.0, 2.0 * np.pi, size=n)
+    x = r * np.cos(th)
+    y = r * np.sin(th)
+    lam = rng.uniform(0.5e-12, 1.5e-12, size=n)
+    dist = _slice(x, y, lam=lam)
+
+    fm_ref = AnalyticMirrorChargeSpaceChargeSolver(radius=radius).solve(dist)
+    fm_green = CircularGreenSpaceChargeSolver(
+        radius=radius, n_r=200, n_theta=720
+    ).solve(dist)
+
+    scale = max(np.max(np.abs(fm_ref.ex)), np.max(np.abs(fm_ref.ey)))
+    rel_ex = np.max(np.abs(fm_green.ex - fm_ref.ex)) / scale
+    rel_ey = np.max(np.abs(fm_green.ey - fm_ref.ey)) / scale
+    assert rel_ex <= 5.0e-2, f"Ex max rel error {rel_ex:.3e} > 5%"
+    assert rel_ey <= 5.0e-2, f"Ey max rel error {rel_ey:.3e} > 5%"
