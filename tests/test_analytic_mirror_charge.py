@@ -44,3 +44,14 @@ def test_analytic_matches_pure_python_reference():
     scale = max(np.max(np.abs(ex_ref)), np.max(np.abs(ey_ref)))
     np.testing.assert_allclose(fm.ex, ex_ref, atol=1.0e-10 * scale)
     np.testing.assert_allclose(fm.ey, ey_ref, atol=1.0e-10 * scale)
+
+
+def test_analytic_two_particle_symmetry_about_xaxis():
+    radius = 1.0e-3
+    solver = AnalyticMirrorChargeSpaceChargeSolver(radius=radius)
+    x = np.array([0.3e-3, 0.3e-3])
+    y = np.array([+0.2e-3, -0.2e-3])
+    fm = solver.solve(_slice(x, y, lam=np.array([1.0e-12, 1.0e-12])))
+
+    np.testing.assert_allclose(fm.ex[0], fm.ex[1], rtol=1e-10, atol=1e-10)
+    np.testing.assert_allclose(fm.ey[0], -fm.ey[1], rtol=1e-10, atol=1e-10)
