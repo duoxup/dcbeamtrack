@@ -17,6 +17,7 @@ from .spacecharge import (
     CircularGreenSpaceChargeSolver,
     FieldMap2D,
     FieldMap2DProtocol,
+    RectFdmCircularBoundarySolver,
     RectFdmSpaceChargeSolver,
     SpaceChargeSolver,
 )
@@ -40,6 +41,7 @@ __all__ = [
     "RectFdmSpaceChargeSolver",
     "AnnulusGrid",
     "RectBoundary",
+    "RectFdmCircularBoundarySolver",
     "RectGrid",
     "SliceTrackResult",
     "SpaceChargeSolver",
