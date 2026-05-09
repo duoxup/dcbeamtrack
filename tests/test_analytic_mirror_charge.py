@@ -65,3 +65,37 @@ def test_analytic_field_at_size_mismatch_raises():
 
     with pytest.raises(NotImplementedError):
         fm.field_at(np.array([0.0]), np.array([0.0]))
+
+
+def test_analytic_skips_wall_hit_sources():
+    radius = 1.0e-3
+    solver = AnalyticMirrorChargeSpaceChargeSolver(radius=radius)
+    x = np.array([0.0, 0.4e-3])
+    y = np.array([0.0, 0.0])
+    lam = np.array([1.0e-12, 1.0e-12])
+    base = _slice(x, y, lam=lam)
+    fm_full = solver.solve(base)
+
+    from partdist import ParticleArrayQuantity
+
+    masked = SliceDistribution(
+        z=0.0,
+        x=x,
+        y=y,
+        px=base.px,
+        py=base.py,
+        pz=base.pz,
+        t=base.t,
+        lam=lam,
+        extras={
+            "wall_hit": ParticleArrayQuantity(
+                name="wall_hit",
+                data=np.array([False, True]),
+                dtype_kind="bool",
+            )
+        },
+    )
+    fm_masked = solver.solve(masked)
+
+    assert not np.allclose(fm_full.ex, fm_masked.ex)
+    assert fm_masked.ex[1] == 0.0 and fm_masked.ey[1] == 0.0
