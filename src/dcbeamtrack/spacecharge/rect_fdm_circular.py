@@ -51,11 +51,10 @@ class RectFdmCircularBoundarySolver:
         edge_mask[:, -1] = True
         interior_mask = (r_node < self.radius) & (~edge_mask)
 
-        matrix, flat_indices = build_laplacian_5pt_masked(
+        matrix, _ = build_laplacian_5pt_masked(
             (grid.ny, grid.nx), interior_mask
         )
         self._interior_mask = interior_mask
-        self._interior_flat_indices = flat_indices
         self._solve = factorized(matrix)
 
     def solve(self, distribution) -> FieldMap2D:
@@ -92,5 +91,6 @@ class RectFdmCircularBoundarySolver:
             potential=potential,
             ex_nodes=ex_nodes,
             ey_nodes=ey_nodes,
+            # 1-D (n_interior,) — differs from RectFdmSpaceChargeSolver's (ny-2, nx-2)
             line_charge_internal=line_charge_full[self._interior_mask],
         )
