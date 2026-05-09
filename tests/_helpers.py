@@ -10,7 +10,7 @@ from dcbeamtrack.constants import EPS0
 
 def direct_mirror_charge_field(
     x: np.ndarray, y: np.ndarray, q: np.ndarray, radius: float
-):
+) -> tuple[np.ndarray, np.ndarray]:
     """Reference O(N**2) mirror-charge field for a grounded circular pipe.
 
     Direct line-charge contribution plus a single image charge of opposite sign at
