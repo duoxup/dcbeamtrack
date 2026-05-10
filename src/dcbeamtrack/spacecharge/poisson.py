@@ -122,8 +122,8 @@ def make_sparse_solve(
         A callable ``solve(rhs: np.ndarray) -> np.ndarray``.
 
     Raises:
-        ImportError: backend="pypardiso" but pypardiso is not installed.
         ValueError: backend not in {"auto", "scipy", "pypardiso"}.
+        ImportError: backend="pypardiso" but pypardiso is not installed.
     """
     if backend not in ("auto", "scipy", "pypardiso"):
         raise ValueError(
