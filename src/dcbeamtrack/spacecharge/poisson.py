@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from typing import Callable
+
 import numpy as np
 import scipy.sparse as sp
+from scipy.sparse.linalg import factorized
 
 
 def build_laplacian_5pt(nx_nodes: int, ny_nodes: int) -> sp.csc_matrix:
@@ -88,3 +91,57 @@ def build_laplacian_5pt_masked(
         sp.coo_matrix((data, (rows, cols)), shape=(n, n)).tocsc(),
         flat_indices,
     )
+
+
+def _has_pypardiso() -> bool:
+    try:
+        import pypardiso  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+def make_sparse_solve(
+    matrix: sp.csc_matrix,
+    *,
+    backend: str = "auto",
+) -> Callable[[np.ndarray], np.ndarray]:
+    """Return a callable that solves ``matrix @ x = rhs`` for x.
+
+    The callable owns a one-time factorization (LU for scipy, PARDISO for
+    pypardiso). Per-call cost is back-substitution only.
+
+    Args:
+        matrix: SPD sparse matrix in CSC format.
+        backend: One of "auto", "scipy", "pypardiso".
+            - "auto" (default): use pypardiso if importable, else scipy.
+            - "scipy": always use scipy.sparse.linalg.factorized (single-threaded).
+            - "pypardiso": require pypardiso. Raise ImportError if missing.
+
+    Returns:
+        A callable ``solve(rhs: np.ndarray) -> np.ndarray``.
+
+    Raises:
+        ImportError: backend="pypardiso" but pypardiso is not installed.
+        ValueError: backend not in {"auto", "scipy", "pypardiso"}.
+    """
+    if backend not in ("auto", "scipy", "pypardiso"):
+        raise ValueError(
+            f"backend must be one of 'auto', 'scipy', 'pypardiso'; got {backend!r}"
+        )
+
+    if backend == "auto":
+        backend = "pypardiso" if _has_pypardiso() else "scipy"
+
+    if backend == "pypardiso":
+        import pypardiso
+
+        ps = pypardiso.PyPardisoSolver()
+        ps.factorize(matrix)
+
+        def _solve(rhs):
+            return ps.solve(matrix, rhs)
+
+        return _solve
+
+    return factorized(matrix)
