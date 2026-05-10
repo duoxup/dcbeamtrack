@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.sparse.linalg import factorized
-
 from dcbeamtrack.constants import EPS0
 from dcbeamtrack.mesh import RectGrid
 
 from .deposition import deposit_line_charge
-from .poisson import build_laplacian_5pt_masked, field_from_potential
+from .poisson import build_laplacian_5pt_masked, field_from_potential, make_sparse_solve
 from .solver import FieldMap2D
 
 
@@ -28,6 +26,7 @@ class RectFdmCircularBoundarySolver:
         radius: float,
         *,
         deposition: str = "CIC",
+        backend: str = "auto",
     ) -> None:
         if radius <= 0.0:
             raise ValueError("radius must be positive.")
@@ -55,7 +54,8 @@ class RectFdmCircularBoundarySolver:
             (grid.ny, grid.nx), interior_mask
         )
         self._interior_mask = interior_mask
-        self._solve = factorized(matrix)
+        self.backend = backend
+        self._solve = make_sparse_solve(matrix, backend=backend)
 
     def solve(self, distribution) -> FieldMap2D:
         if not hasattr(distribution, "z"):
