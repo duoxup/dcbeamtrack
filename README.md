@@ -2,6 +2,21 @@
 
 Minimal 2.5D tracking tools for DC electron beams.
 
+## Installation
+
+```bash
+pip install dcbeamtrack             # default (scipy single-threaded sparse LU)
+pip install dcbeamtrack[fast]       # + pypardiso for multi-threaded MKL PARDISO
+```
+
+The `[fast]` extra pulls in `pypardiso` (Intel MKL bundle, ~600 MB one-time
+download). When installed, both FDM solvers automatically use the
+multi-threaded backend via `backend="auto"` (default). Measured speedup is
+1.4-2.5× on a 100²-200² grid at 8 threads (see
+`docs/performance_notes.md` for benchmark details). To force a specific
+backend, pass `backend="scipy"` or `backend="pypardiso"` to the solver
+constructor.
+
 ## Current Public API
 
 The validated first path is a fixed-z slice simulation with rectangular FDM
