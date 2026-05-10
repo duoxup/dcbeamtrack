@@ -10,6 +10,7 @@ from dcbeamtrack.fields import MagneticField
 from dcbeamtrack.mesh import RectGrid
 from dcbeamtrack.spacecharge import (
     CircularGreenSpaceChargeSolver,
+    RectFdmCircularBoundarySolver,
     RectFdmSpaceChargeSolver,
     SpaceChargeSolver,
 )
@@ -61,6 +62,28 @@ class DcBeamSimulation:
             n_r=n_r,
             n_theta=n_theta,
             r_eps=r_eps,
+        )
+        return cls(
+            magnetic_field=magnetic_field,
+            config=config,
+            spacecharge_solver=solver,
+            boundary=CircularBoundary(radius=radius),
+        )
+
+    @classmethod
+    def rect_fdm_circular(
+        cls,
+        *,
+        grid: RectGrid,
+        radius: float,
+        magnetic_field: MagneticField,
+        config: TrackConfig,
+        deposition: str | None = None,
+    ) -> "DcBeamSimulation":
+        solver = RectFdmCircularBoundarySolver(
+            grid,
+            radius=radius,
+            deposition=deposition or config.deposition,
         )
         return cls(
             magnetic_field=magnetic_field,

@@ -17,6 +17,7 @@ from .spacecharge import (
     CircularGreenSpaceChargeSolver,
     FieldMap2D,
     FieldMap2DProtocol,
+    RectFdmCircularBoundarySolver,
     RectFdmSpaceChargeSolver,
     SpaceChargeSolver,
 )
@@ -37,6 +38,7 @@ __all__ = [
     "FieldMap2DProtocol",
     "GaussianMixture",
     "MagneticField",
+    "RectFdmCircularBoundarySolver",
     "RectFdmSpaceChargeSolver",
     "AnnulusGrid",
     "RectBoundary",
