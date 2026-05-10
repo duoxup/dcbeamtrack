@@ -4,13 +4,11 @@ from dataclasses import dataclass
 
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-from scipy.sparse.linalg import factorized
-
 from dcbeamtrack.constants import EPS0
 from dcbeamtrack.mesh import RectGrid
 
 from .deposition import deposit_line_charge
-from .poisson import build_laplacian_5pt, field_from_potential
+from .poisson import build_laplacian_5pt, field_from_potential, make_sparse_solve
 
 
 @dataclass(frozen=True)
@@ -36,11 +34,18 @@ class FieldMap2D:
 
 
 class RectFdmSpaceChargeSolver:
-    def __init__(self, grid: RectGrid, *, deposition: str = "CIC") -> None:
+    def __init__(
+        self,
+        grid: RectGrid,
+        *,
+        deposition: str = "CIC",
+        backend: str = "auto",
+    ) -> None:
         self.grid = grid
         self.deposition = deposition
+        self.backend = backend
         matrix = build_laplacian_5pt(grid.nx, grid.ny)
-        self._solve = factorized(matrix)
+        self._solve = make_sparse_solve(matrix, backend=backend)
 
     def solve(self, distribution) -> FieldMap2D:
         if not hasattr(distribution, "z"):
