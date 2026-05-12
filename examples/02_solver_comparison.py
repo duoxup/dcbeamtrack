@@ -37,6 +37,7 @@ from dcbeamtrack import (
     DcBeamSimulation,
     RectGrid,
     TrackConfig,
+    TriGrid,
     UniformDisk,
     sample_slice_from_density_on_grid,
 )
@@ -46,7 +47,7 @@ def main() -> None:
     vz0 = 7.96e7
     radius_pipe = 150e-6
     source = UniformDisk(radius=35e-6, current=-0.015, vz=vz0)
-    particle_grid = RectGrid.from_size(width=80e-6, height=80e-6, spacing=4e-6)
+    particle_grid = TriGrid.from_size(width=80e-6, height=80e-6, hmax=3e-6)
     field_grid = RectGrid.from_size(width=320e-6, height=320e-6, spacing=4e-6)
     initial = sample_slice_from_density_on_grid(source, grid=particle_grid, z0=0.0)
 

@@ -40,6 +40,7 @@ from dcbeamtrack import (
     DcBeamSimulation,
     RectGrid,
     TrackConfig,
+    TriGrid,
     UniformDisk,
     sample_slice_from_density_on_grid,
 )
@@ -70,7 +71,7 @@ class LinearRestoringSolver:
 def main() -> None:
     vz0 = 5.0e7
     source = UniformDisk(radius=35e-6, current=-0.015, vz=vz0)
-    particle_grid = RectGrid.from_size(width=70e-6, height=70e-6, spacing=5e-6)
+    particle_grid = TriGrid.from_size(width=70e-6, height=70e-6, hmax=3e-6)
     initial = sample_slice_from_density_on_grid(source, grid=particle_grid, z0=0.0)
 
     z_table = np.linspace(-3.0, 33.0, 1001)

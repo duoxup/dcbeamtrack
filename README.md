@@ -12,6 +12,8 @@ pip install "dcbeamtrack[fast] @ git+https://github.com/duoxup/dcbeamtrack.git"
 pip install "dcbeamtrack[examples] @ git+https://github.com/duoxup/dcbeamtrack.git"
 ```
 
+Core deps include `meshpy` for unstructured `TriGrid` particle sampling
+(Linux/macOS wheels available; Windows users may need MSVC build tools).
 Extras: `[fast]` adds `pypardiso` (multi-threaded MKL PARDISO);
 `[examples]` adds `matplotlib` for the runnable examples under `examples/`.
 
@@ -41,13 +43,14 @@ from dcbeamtrack import (
     DcBeamSimulation,
     RectGrid,
     TrackConfig,
+    TriGrid,
     UniformDisk,
     sample_slice_from_density_on_grid,
 )
 
 vz0 = 5.0e7
 source = UniformDisk(radius=35e-6, current=-0.015, vz=vz0)
-particle_grid = RectGrid.from_size(width=70e-6, height=70e-6, spacing=5e-6)
+particle_grid = TriGrid.from_size(width=70e-6, height=70e-6, hmax=3e-6)
 field_grid = RectGrid.from_size(width=0.3e-3, height=0.3e-3, spacing=3e-6)
 
 initial = sample_slice_from_density_on_grid(source, grid=particle_grid, z0=0.0)

@@ -16,13 +16,13 @@ dependencies = [
   "scipy",
   "numba",
   "partdist",
+  "meshpy",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "black"]
 fast = ["pypardiso"]
 examples = ["matplotlib"]
-tri = ["meshpy"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
