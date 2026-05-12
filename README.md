@@ -38,7 +38,7 @@ source = UniformDisk(radius=35e-6, current=-0.015, vz=vz0)
 particle_grid = RectGrid.from_size(width=70e-6, height=70e-6, spacing=5e-6)
 field_grid = RectGrid.from_size(width=0.3e-3, height=0.3e-3, spacing=3e-6)
 
-initial = sample_slice_from_density_on_grid(source, particle_grid, z0=0.0)
+initial = sample_slice_from_density_on_grid(source, grid=particle_grid, z0=0.0)
 field = AxialMagneticField.from_z_bz(
     np.linspace(-3.0, 33.0, 1001),
     0.35 * np.sin(2.0 * np.pi * np.linspace(-3.0, 33.0, 1001) / 4.93),
@@ -64,6 +64,18 @@ from dcbeamtrack import SliceTrackResult
 result = SliceTrackResult.load_npz("result.npz")
 z, rms_radius = result.radial_envelope("rms")
 ```
+
+## Examples
+
+Three runnable examples live in `examples/`:
+
+- `examples/01_rect_fdm_minimal.py` — minimal `rect_fdm` simulation; runnable companion to the code block above.
+- `examples/02_solver_comparison.py` — same slice through `rect_fdm` and `circular_green` with envelope comparison and a saved plot.
+- `examples/03_result_analysis.py` — exercises the result-side diagnostic API (`envelope_summary`, `final_summary`, `metadata`, `trajectories`, `random_mask`, `evenly_spaced_mask`, `where_live`).
+
+Run any example from the repo root with `python examples/<name>.py`
+(`PYTHONPATH=src python examples/<name>.py` if the package is not pip-installed).
+Outputs land under `artifacts/examples/<stem>/`.
 
 ## Regression Tools
 
