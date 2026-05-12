@@ -32,18 +32,8 @@ def _load_legacy_t2dcore():
     return legacy
 
 
-def _envelope(x: np.ndarray, y: np.ndarray, weights: np.ndarray):
-    r = np.hypot(x, y)
-    return np.max(r, axis=1), np.average(r, axis=1, weights=weights)
-
-
-def _diff_metrics(label_a: str, arr_a: np.ndarray, arr_b: np.ndarray) -> dict:
-    abs_diff = np.abs(arr_a - arr_b)
-    rel_diff = abs_diff / np.maximum(np.abs(arr_b), 1e-30)
-    return {
-        f"{label_a}_max_abs_diff": float(np.max(abs_diff)),
-        f"{label_a}_max_rel_diff": float(np.max(rel_diff)),
-    }
+def _prefix(d: dict, prefix: str) -> dict:
+    return {f"{prefix}_{k}": v for k, v in d.items()}
 
 
 def main() -> None:
@@ -169,37 +159,9 @@ def main() -> None:
     res_green, wall_green, n_green, ps_green = _run_timed(sim_green, "green")
     res_analytic, wall_analytic, n_analytic, ps_analytic = _run_timed(sim_analytic, "analytic")
 
-    n = min(n_fdm, n_green, n_analytic)
-    weights = np.abs(initial_legacy.macro_charges)
-
-    def _slice_to_n(result):
-        return (
-            result.array("x")[:n],
-            result.array("y")[:n],
-            result.z[:n],
-        )
-
-    x_f, y_f, z_f = _slice_to_n(res_fdm)
-    x_g, y_g, z_g = _slice_to_n(res_green)
-    x_a, y_a, z_a = _slice_to_n(res_analytic)
-
-    r_max_f, r_mean_f = _envelope(x_f, y_f, weights)
-    r_max_g, r_mean_g = _envelope(x_g, y_g, weights)
-    r_max_a, r_mean_a = _envelope(x_a, y_a, weights)
-
-    wall_count_f = int(
-        np.sum(np.asarray(res_fdm.final.get_data("wall_hit"), dtype=bool))
-    )
-    wall_count_g = int(
-        np.sum(np.asarray(res_green.final.get_data("wall_hit"), dtype=bool))
-    )
-    wall_count_a = int(
-        np.sum(np.asarray(res_analytic.final.get_data("wall_hit"), dtype=bool))
-    )
-
     summary = {
         "steps_requested": args.steps,
-        "snapshots_compared": int(n),
+        "snapshots_compared": int(len(res_fdm)),
         "particles": int(initial_legacy.num_particles),
         "precision": args.precision,
         "seed": int(args.seed),
@@ -219,26 +181,16 @@ def main() -> None:
             "green": float(ps_green),
             "analytic": float(ps_analytic),
         },
-        "wall_hit": {
-            "fdm": wall_count_f,
-            "green": wall_count_g,
-            "analytic": wall_count_a,
-        },
-        "final_r_max_um": {
-            "fdm": float(r_max_f[-1] * 1e6),
-            "green": float(r_max_g[-1] * 1e6),
-            "analytic": float(r_max_a[-1] * 1e6),
-        },
-        "final_r_mean_um": {
-            "fdm": float(r_mean_f[-1] * 1e6),
-            "green": float(r_mean_g[-1] * 1e6),
-            "analytic": float(r_mean_a[-1] * 1e6),
-        },
     }
-    summary["fdm_vs_analytic_r_max"] = _diff_metrics("fdm_vs_analytic_r_max", r_max_f, r_max_a)
-    summary["fdm_vs_analytic_r_mean"] = _diff_metrics("fdm_vs_analytic_r_mean", r_mean_f, r_mean_a)
-    summary["green_vs_analytic_r_max"] = _diff_metrics("green_vs_analytic_r_max", r_max_g, r_max_a)
-    summary["green_vs_analytic_r_mean"] = _diff_metrics("green_vs_analytic_r_mean", r_mean_g, r_mean_a)
+    summary.update(_prefix(res_fdm.envelope_summary(), "fdm"))
+    summary.update(_prefix(res_green.envelope_summary(), "green"))
+    summary.update(_prefix(res_analytic.envelope_summary(), "analytic"))
+    summary.update(_prefix(res_fdm.final_summary(), "fdm"))
+    summary.update(_prefix(res_green.final_summary(), "green"))
+    summary.update(_prefix(res_analytic.final_summary(), "analytic"))
+    summary.update(_prefix(res_fdm.compare(res_analytic), "fdm_vs_analytic"))
+    summary.update(_prefix(res_green.compare(res_analytic), "green_vs_analytic"))
+    summary.update(_prefix(res_fdm.compare(res_green), "fdm_vs_green"))
     summary["note"] = (
         "Analytic mirror-charge solver is ground truth (exact within FP). "
         "FDM uses staircase circular Dirichlet on rect grid; Green uses polar "
@@ -251,36 +203,35 @@ def main() -> None:
     npz_path = args.output_dir / f"arrays_{suffix}.npz"
 
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+    z_f, r_max_f = res_fdm.radial_envelope("max")
+    _, r_mean_f = res_fdm.radial_envelope("mean")
+    z_g, r_max_g = res_green.radial_envelope("max")
+    _, r_mean_g = res_green.radial_envelope("mean")
+    z_a, r_max_a = res_analytic.radial_envelope("max")
+    _, r_mean_a = res_analytic.radial_envelope("mean")
+
     np.savez(
         npz_path,
-        z_fdm=z_f,
-        z_green=z_g,
-        z_analytic=z_a,
-        r_max_fdm=r_max_f,
-        r_max_green=r_max_g,
-        r_max_analytic=r_max_a,
-        r_mean_fdm=r_mean_f,
-        r_mean_green=r_mean_g,
-        r_mean_analytic=r_mean_a,
-        x_fdm_final=x_f[-1],
-        y_fdm_final=y_f[-1],
-        x_green_final=x_g[-1],
-        y_green_final=y_g[-1],
-        x_analytic_final=x_a[-1],
-        y_analytic_final=y_a[-1],
-        weights=weights,
+        z_fdm=z_f, z_green=z_g, z_analytic=z_a,
+        r_max_fdm=r_max_f, r_max_green=r_max_g, r_max_analytic=r_max_a,
+        r_mean_fdm=r_mean_f, r_mean_green=r_mean_g, r_mean_analytic=r_mean_a,
+        x_fdm_final=res_fdm.final.x, y_fdm_final=res_fdm.final.y,
+        x_green_final=res_green.final.x, y_green_final=res_green.final.y,
+        x_analytic_final=res_analytic.final.x, y_analytic_final=res_analytic.final.y,
+        weights=np.abs(res_fdm.weights(absolute=False)),
     )
 
     print()
     print(f"particles               = {summary['particles']}")
-    print(f"snapshots compared      = {n}")
-    print(f"FDM    final r_max [um] = {r_max_f[-1] * 1e6:.6f}")
-    print(f"Green  final r_max [um] = {r_max_g[-1] * 1e6:.6f}")
-    print(f"Analyt final r_max [um] = {r_max_a[-1] * 1e6:.6f}")
-    print(f"FDM   vs Analytic r_max max rel diff = {summary['fdm_vs_analytic_r_max']['fdm_vs_analytic_r_max_max_rel_diff']:.4e}")
-    print(f"Green vs Analytic r_max max rel diff = {summary['green_vs_analytic_r_max']['green_vs_analytic_r_max_max_rel_diff']:.4e}")
+    print(f"snapshots compared      = {summary['snapshots_compared']}")
+    print(f"FDM    final r_max [um] = {summary['fdm_r_max_final'] * 1e6:.6f}")
+    print(f"Green  final r_max [um] = {summary['green_r_max_final'] * 1e6:.6f}")
+    print(f"Analyt final r_max [um] = {summary['analytic_r_max_final'] * 1e6:.6f}")
+    print(f"FDM   vs Analytic r_max max rel diff = {summary['fdm_vs_analytic_r_max_max_rel_diff']:.4e}")
+    print(f"Green vs Analytic r_max max rel diff = {summary['green_vs_analytic_r_max_max_rel_diff']:.4e}")
     print(f"per-snapshot timing [ms]: fdm={ps_fdm:.2f}  green={ps_green:.2f}  analytic={ps_analytic:.2f}")
-    print(f"wall_hit counts: fdm={wall_count_f}  green={wall_count_g}  analytic={wall_count_a}")
+    print(f"wall_hit counts: fdm={summary['fdm_n_wall_hit_final']}  green={summary['green_n_wall_hit_final']}  analytic={summary['analytic_n_wall_hit_final']}")
     print(f"summary={summary_path}")
     print(f"arrays={npz_path}")
 
