@@ -565,3 +565,19 @@ class ParticleTrajectories:
     live: np.ndarray
     mask: np.ndarray
     keys: tuple[str, ...]
+
+    def where_live(self, value: float = np.nan) -> "ParticleTrajectories":
+        """Return a new ParticleTrajectories with dead positions filled by ``value``.
+
+        All 2D arrays in ``data`` are replaced by ``np.where(self.live, arr, value)``.
+        ``z``, ``live``, ``mask``, and ``keys`` are preserved. ``data`` insertion
+        order matches ``self.keys``.
+        """
+        new_data = {k: np.where(self.live, self.data[k], value) for k in self.keys}
+        return ParticleTrajectories(
+            z=self.z,
+            data=new_data,
+            live=self.live,
+            mask=self.mask,
+            keys=self.keys,
+        )

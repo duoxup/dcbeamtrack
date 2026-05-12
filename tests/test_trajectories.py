@@ -235,3 +235,50 @@ def test_evenly_spaced_mask_out_of_range_raises():
         result.evenly_spaced_mask(0)
     with pytest.raises(ValueError):
         result.evenly_spaced_mask(4)
+
+
+def test_where_live_default_nan_fills_dead_positions():
+    # particle 1 dies at snap 1.
+    s0 = _snap(0.0, [0.0, 1.0], [10.0, 11.0], wall_hit=[0.0, 0.0])
+    s1 = _snap(1.0, [0.0, 1.5], [10.0, 11.5], wall_hit=[0.0, 1.0])
+    result = SliceTrackResult((s0, s1))
+
+    traj = result.trajectories(np.array([True, True]), keys=("x", "y"))
+    filled = traj.where_live()
+
+    # x: live at snap 0 both, snap 1 particle 1 dead -> column 1 row 1 = nan.
+    np.testing.assert_array_equal(filled.data["x"][0], np.array([0.0, 1.0]))
+    assert filled.data["x"][1, 0] == 0.0
+    assert math.isnan(filled.data["x"][1, 1])
+    assert math.isnan(filled.data["y"][1, 1])
+
+    # z, live, mask, keys unchanged.
+    np.testing.assert_array_equal(filled.z, traj.z)
+    np.testing.assert_array_equal(filled.live, traj.live)
+    np.testing.assert_array_equal(filled.mask, traj.mask)
+    assert filled.keys == traj.keys
+
+
+def test_where_live_custom_value():
+    s0 = _snap(0.0, [0.0, 1.0], [0.0, 0.0], wall_hit=[0.0, 0.0])
+    s1 = _snap(1.0, [0.0, 1.0], [0.0, 0.0], wall_hit=[0.0, 1.0])
+    result = SliceTrackResult((s0, s1))
+
+    traj = result.trajectories(np.array([True, True]), keys=("x",))
+    filled = traj.where_live(value=-999.0)
+
+    assert filled.data["x"][1, 1] == -999.0
+    # Live positions untouched.
+    assert filled.data["x"][0, 0] == 0.0
+
+
+def test_where_live_preserves_keys_order_and_dict_order():
+    s0 = _snap(0.0, [0.0, 1.0], [10.0, 11.0])
+    s1 = _snap(1.0, [0.0, 1.0], [10.0, 11.0])
+    result = SliceTrackResult((s0, s1))
+
+    traj = result.trajectories(np.array([True, True]),
+                               keys=("y", "px", "x"))
+    filled = traj.where_live()
+    assert filled.keys == ("y", "px", "x")
+    assert list(filled.data.keys()) == ["y", "px", "x"]
