@@ -133,6 +133,42 @@ class AnnulusGrid(CellGrid):
         )
 
     @classmethod
+    def from_uniform_cells(
+        cls,
+        *,
+        radius: float,
+        n_rings: int,
+        center: Tuple[float, float] = (0.0, 0.0),
+        theta_offset: float = 0.0,
+    ) -> "AnnulusGrid":
+        """Equal-area annular grid with growing angular density per ring.
+
+        Builds ``n_angular = [1, 8, 16, ..., 8*(n_rings-1)]`` so the central
+        cell is a full disk and outer rings get more angular subdivisions as
+        they grow circumferentially. This keeps cell aspect ratios roughly
+        uniform across the radial direction; passing a scalar to
+        :meth:`from_equal_area` produces a radial "spoke" pattern instead.
+
+        For ``n_rings=17`` the total cell count is 1089, matching the legacy
+        ``t2dcore`` convention. For full control over per-ring counts, call
+        :meth:`from_equal_area` directly with an array ``n_angular``.
+        """
+        n_rings = int(n_rings)
+        if n_rings < 1:
+            raise ValueError("n_rings must be >= 1.")
+        n_angular = np.empty(n_rings, dtype=int)
+        n_angular[0] = 1
+        if n_rings > 1:
+            n_angular[1:] = np.arange(1, n_rings) * 8
+        return cls.from_equal_area(
+            radius=radius,
+            n_rings=n_rings,
+            n_angular=n_angular,
+            center=center,
+            theta_offset=theta_offset,
+        )
+
+    @classmethod
     def from_equal_area(
         cls,
         *,
