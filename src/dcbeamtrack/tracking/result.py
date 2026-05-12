@@ -29,6 +29,45 @@ def _decode_config(payload: dict) -> object | None:
     return None
 
 
+def _masked_weighted_envelope(
+    x: np.ndarray,
+    y: np.ndarray,
+    weights: np.ndarray,
+    live: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Compute (r_max, r_mean, r_rms) per snapshot on live particles only.
+
+    Inputs:
+      x, y: (n_snap, n_part) coordinates
+      weights: (n_part,) per-particle absolute weight
+      live: (n_snap, n_part) bool mask, True = particle alive in that snapshot
+
+    Returns three (n_snap,) arrays. Snapshots with zero live weight produce nan
+    in all three outputs (caller decides how to react).
+    """
+    r = np.hypot(x, y)
+    r2 = x * x + y * y
+    w_row = weights[None, :]
+    w_live = np.where(live, w_row, 0.0)
+    wsum = w_live.sum(axis=1)
+    valid = wsum > 0
+
+    r_max = np.full_like(wsum, np.nan, dtype=float)
+    r_mean = np.full_like(wsum, np.nan, dtype=float)
+    r_rms = np.full_like(wsum, np.nan, dtype=float)
+    if valid.any():
+        r_masked = np.where(live, r, np.nan)
+        with np.errstate(invalid="ignore"):
+            r_max_all = np.nanmax(r_masked, axis=1)
+        r_max[valid] = r_max_all[valid]
+
+        num_mean = np.where(live, r * w_row, 0.0).sum(axis=1)
+        num_rms2 = np.where(live, r2 * w_row, 0.0).sum(axis=1)
+        r_mean[valid] = num_mean[valid] / wsum[valid]
+        r_rms[valid] = np.sqrt(num_rms2[valid] / wsum[valid])
+    return r_max, r_mean, r_rms
+
+
 @dataclass(frozen=True)
 class SliceTrackResult(Sequence[SliceDistribution]):
     snapshots: tuple[SliceDistribution, ...]
@@ -139,6 +178,35 @@ class SliceTrackResult(Sequence[SliceDistribution]):
         else:
             env = self.r_rms()
         return self.z, env
+
+    def envelope_summary(self) -> dict:
+        """Scalar summary of the full-trajectory envelopes on live particles.
+
+        Returns a flat dict with keys: r_{max,mean,rms}_{peak,peak_z,final},
+        waist_z, waist_r_rms. Raises ValueError if no snapshot has any live
+        particles. Particles flagged via wall_hit are excluded via live_mask().
+        """
+        x = self.array("x")
+        y = self.array("y")
+        w = self.weights(absolute=True)
+        live = self.live_mask()
+        r_max_arr, r_mean_arr, r_rms_arr = _masked_weighted_envelope(x, y, w, live)
+
+        if np.isnan(r_rms_arr).all():
+            raise ValueError("envelope_summary: no live particles in any snapshot")
+
+        z = self.z
+        out: dict = {}
+        for kind, arr in (("r_max", r_max_arr), ("r_mean", r_mean_arr), ("r_rms", r_rms_arr)):
+            idx = int(np.nanargmax(arr))
+            out[f"{kind}_peak"] = float(arr[idx])
+            out[f"{kind}_peak_z"] = float(z[idx])
+            out[f"{kind}_final"] = float(arr[-1])
+
+        widx = int(np.nanargmin(r_rms_arr))
+        out["waist_z"] = float(z[widx])
+        out["waist_r_rms"] = float(r_rms_arr[widx])
+        return out
 
     def waist(self, kind: str = "rms") -> tuple[float, float]:
         z, envelope = self.radial_envelope(kind=kind)
