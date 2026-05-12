@@ -27,9 +27,8 @@ def _load_legacy_t2dcore():
     return legacy
 
 
-def _envelope(x: np.ndarray, y: np.ndarray, weights: np.ndarray):
-    r = np.hypot(x, y)
-    return np.max(r, axis=1), np.average(r, axis=1, weights=weights)
+def _prefix(d: dict, prefix: str) -> dict:
+    return {f"{prefix}_{k}": v for k, v in d.items()}
 
 
 def main() -> None:
@@ -130,35 +129,9 @@ def main() -> None:
     res_analytic = sim_analytic.run(initial_slice)
     res_green = sim_green.run(initial_slice)
 
-    n_a = len(res_analytic)
-    n_g = len(res_green)
-    n = min(n_a, n_g)
-
-    weights = np.abs(initial_legacy.macro_charges)
-    x_a = res_analytic.array("x")[:n]
-    y_a = res_analytic.array("y")[:n]
-    vx_a = res_analytic.array("vx")[:n]
-    vy_a = res_analytic.array("vy")[:n]
-    vz_a = res_analytic.array("vz")[:n]
-    z_a = res_analytic.z[:n]
-    x_g = res_green.array("x")[:n]
-    y_g = res_green.array("y")[:n]
-    vx_g = res_green.array("vx")[:n]
-    vy_g = res_green.array("vy")[:n]
-    vz_g = res_green.array("vz")[:n]
-    z_g = res_green.z[:n]
-
-    r_max_a, r_mean_a = _envelope(x_a, y_a, weights)
-    r_max_g, r_mean_g = _envelope(x_g, y_g, weights)
-
-    wall_a = int(np.sum(np.asarray(res_analytic.final.get_data("wall_hit"), dtype=bool)))
-    wall_g = int(np.sum(np.asarray(res_green.final.get_data("wall_hit"), dtype=bool)))
-
     summary = {
         "steps_requested": args.steps,
-        "snapshots_analytic": int(n_a),
-        "snapshots_green": int(n_g),
-        "snapshots_compared": int(n),
+        "snapshots_compared": int(len(res_analytic)),
         "particles": int(initial_legacy.num_particles),
         "precision": args.precision,
         "seed": int(args.seed),
@@ -167,27 +140,16 @@ def main() -> None:
         "pipe_radius_m": pipe_radius,
         "bz_uniform_T": bz_uniform,
         "vz0_m_per_s": float(vz0),
-        "analytic_final_z_m": float(z_a[-1]),
-        "green_final_z_m": float(z_g[-1]),
-        "analytic_final_r_max_m": float(r_max_a[-1]),
-        "green_final_r_max_m": float(r_max_g[-1]),
-        "analytic_final_r_mean_m": float(r_mean_a[-1]),
-        "green_final_r_mean_m": float(r_mean_g[-1]),
-        "r_max_max_abs_diff": float(np.max(np.abs(r_max_g - r_max_a))),
-        "r_max_max_rel_diff": float(
-            np.max(np.abs(r_max_g - r_max_a) / np.maximum(np.abs(r_max_a), 1e-30))
-        ),
-        "r_mean_max_abs_diff": float(np.max(np.abs(r_mean_g - r_mean_a))),
-        "r_mean_max_rel_diff": float(
-            np.max(np.abs(r_mean_g - r_mean_a) / np.maximum(np.abs(r_mean_a), 1e-30))
-        ),
-        "wall_hit_analytic": wall_a,
-        "wall_hit_green": wall_g,
-        "note": (
-            "Analytic mirror-charge solver is the ground truth (exact within FP). "
-            "CircularGreen uses polar grid + radial snap + angular linear interp."
-        ),
     }
+    summary.update(_prefix(res_analytic.envelope_summary(), "analytic"))
+    summary.update(_prefix(res_green.envelope_summary(), "green"))
+    summary.update(_prefix(res_analytic.final_summary(), "analytic"))
+    summary.update(_prefix(res_green.final_summary(), "green"))
+    summary.update(_prefix(res_green.compare(res_analytic), "green_vs_analytic"))
+    summary["note"] = (
+        "Analytic mirror-charge solver is the ground truth (exact within FP). "
+        "CircularGreen uses polar grid + radial snap + angular linear interp."
+    )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     suffix = f"steps{args.steps}_seed{args.seed}_{args.precision}"
@@ -195,38 +157,30 @@ def main() -> None:
     npz_path = args.output_dir / f"arrays_{suffix}.npz"
 
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+    z_a, r_max_a = res_analytic.radial_envelope("max")
+    _, r_mean_a = res_analytic.radial_envelope("mean")
+    z_g, r_max_g = res_green.radial_envelope("max")
+    _, r_mean_g = res_green.radial_envelope("mean")
+
     np.savez(
         npz_path,
-        z_analytic=z_a,
-        z_green=z_g,
-        r_max_analytic=r_max_a,
-        r_max_green=r_max_g,
-        r_mean_analytic=r_mean_a,
-        r_mean_green=r_mean_g,
-        x_analytic_final=x_a[-1],
-        y_analytic_final=y_a[-1],
-        x_green_final=x_g[-1],
-        y_green_final=y_g[-1],
-        vx_analytic_final=vx_a[-1],
-        vy_analytic_final=vy_a[-1],
-        vz_analytic_final=vz_a[-1],
-        vx_green_final=vx_g[-1],
-        vy_green_final=vy_g[-1],
-        vz_green_final=vz_g[-1],
-        weights=weights,
+        z_analytic=z_a, z_green=z_g,
+        r_max_analytic=r_max_a, r_max_green=r_max_g,
+        r_mean_analytic=r_mean_a, r_mean_green=r_mean_g,
+        x_analytic_final=res_analytic.final.x, y_analytic_final=res_analytic.final.y,
+        x_green_final=res_green.final.x, y_green_final=res_green.final.y,
+        weights=np.abs(res_analytic.weights(absolute=False)),
     )
 
-    print(f"particles={summary['particles']}")
-    print(f"snapshots compared={summary['snapshots_compared']}")
-    print(f"analytic final r_max [um]={r_max_a[-1] * 1e6:.6f}")
-    print(f"green    final r_max [um]={r_max_g[-1] * 1e6:.6f}")
-    print(f"analytic final r_mean [um]={r_mean_a[-1] * 1e6:.6f}")
-    print(f"green    final r_mean [um]={r_mean_g[-1] * 1e6:.6f}")
-    print(f"r_max max abs diff [um]={summary['r_max_max_abs_diff'] * 1e6:.6f}")
-    print(f"r_max max rel diff     ={summary['r_max_max_rel_diff']:.4e}")
-    print(f"r_mean max abs diff [um]={summary['r_mean_max_abs_diff'] * 1e6:.6f}")
-    print(f"r_mean max rel diff    ={summary['r_mean_max_rel_diff']:.4e}")
-    print(f"wall_hit analytic={wall_a}  green={wall_g}")
+    print()
+    print(f"particles                = {summary['particles']}")
+    print(f"snapshots compared       = {summary['snapshots_compared']}")
+    print(f"Analytic final r_max [um] = {summary['analytic_r_max_final'] * 1e6:.6f}")
+    print(f"Green    final r_max [um] = {summary['green_r_max_final'] * 1e6:.6f}")
+    print(f"r_max  max rel diff = {summary['green_vs_analytic_r_max_max_rel_diff']:.4e}")
+    print(f"r_mean max rel diff = {summary['green_vs_analytic_r_mean_max_rel_diff']:.4e}")
+    print(f"wall_hit counts: analytic={summary['analytic_n_wall_hit_final']}  green={summary['green_n_wall_hit_final']}")
     print(f"summary={summary_path}")
     print(f"arrays={npz_path}")
 
