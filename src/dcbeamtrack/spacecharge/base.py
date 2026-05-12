@@ -43,7 +43,8 @@ class FieldMap2DProtocol(Protocol):
 
 
 class SpaceChargeSolver(Protocol):
-    """Space-charge solver consumed by ``track_slice``.
+    """Space-charge solver consumed by the tracker (``track_slice`` directly
+    or via ``DcBeamSimulation.run``).
 
     Each tracker step calls :meth:`solve` with the current slice
     distribution and uses the returned field map to push particles.
