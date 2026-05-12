@@ -145,6 +145,21 @@ def test_trajectories_empty_mask_returns_zero_width():
     assert traj.mask.sum() == 0
 
 
+def test_trajectories_default_mask_selects_all_particles():
+    s0 = _snap(0.0, [0.0, 1.0, 2.0], [10.0, 11.0, 12.0])
+    s1 = _snap(1.0, [3.0, 4.0, 5.0], [13.0, 14.0, 15.0])
+    result = SliceTrackResult((s0, s1))
+
+    traj = result.trajectories()
+
+    assert traj.mask.shape == (3,)
+    assert traj.mask.dtype == bool
+    assert traj.mask.all()
+    assert traj.data["x"].shape == (2, 3)
+    np.testing.assert_array_equal(traj.data["x"][0], [0.0, 1.0, 2.0])
+    np.testing.assert_array_equal(traj.data["x"][1], [3.0, 4.0, 5.0])
+
+
 def test_trajectories_mask_wrong_length_raises():
     s0 = _snap(0.0, [0.0, 1.0, 2.0], np.zeros(3))
     result = SliceTrackResult((s0,))

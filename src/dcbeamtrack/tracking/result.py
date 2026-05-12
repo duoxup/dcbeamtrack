@@ -182,30 +182,34 @@ class SliceTrackResult(Sequence[SliceDistribution]):
 
     def trajectories(
         self,
-        mask: np.ndarray,
+        mask: np.ndarray | None = None,
         *,
         keys: tuple[str, ...] = ("x", "y", "px", "py", "pz"),
     ) -> "ParticleTrajectories":
         """Extract per-snapshot data for the particles selected by ``mask``.
 
-        ``mask`` must be a bool ndarray of shape ``(n_particles,)``. ``keys``
-        is normalized to a tuple; each key is resolved via :meth:`array`, so
-        the core kinematic keys (``x``, ``y``, ``px``, ``py``, ``pz``, ``t``,
-        ``lam``, ``z``) and any extra quantity carried by the snapshots
-        (e.g. ``wall_hit``) are accepted. Returns a :class:`ParticleTrajectories`
-        whose ``data[k]`` has shape ``(n_snapshots, k_selected)``, with columns
-        in original particle-index order.
+        ``mask`` must be a bool ndarray of shape ``(n_particles,)``, or ``None``
+        (default) to select every particle. ``keys`` is normalized to a tuple;
+        each key is resolved via :meth:`array`, so the core kinematic keys
+        (``x``, ``y``, ``px``, ``py``, ``pz``, ``t``, ``lam``, ``z``) and any
+        extra quantity carried by the snapshots (e.g. ``wall_hit``) are
+        accepted. Returns a :class:`ParticleTrajectories` whose ``data[k]`` has
+        shape ``(n_snapshots, k_selected)``, with columns in original
+        particle-index order.
         """
-        mask_arr = np.asarray(mask)
-        if mask_arr.dtype != bool:
-            raise TypeError(
-                f"trajectories: mask must be bool dtype, got {mask_arr.dtype}."
-            )
-        if mask_arr.shape != (self.n_particles,):
-            raise ValueError(
-                f"trajectories: mask shape {mask_arr.shape} does not match "
-                f"({self.n_particles},)."
-            )
+        if mask is None:
+            mask_arr = np.ones(self.n_particles, dtype=bool)
+        else:
+            mask_arr = np.asarray(mask)
+            if mask_arr.dtype != bool:
+                raise TypeError(
+                    f"trajectories: mask must be bool dtype, got {mask_arr.dtype}."
+                )
+            if mask_arr.shape != (self.n_particles,):
+                raise ValueError(
+                    f"trajectories: mask shape {mask_arr.shape} does not match "
+                    f"({self.n_particles},)."
+                )
         keys_tuple = tuple(keys)
         if len(keys_tuple) == 0:
             raise ValueError("trajectories: keys must be non-empty.")
