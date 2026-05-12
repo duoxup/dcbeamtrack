@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterator, Sequence
 
@@ -27,6 +27,29 @@ def _decode_config(payload: dict) -> object | None:
     if payload.get("type") == "TrackConfig" and payload.get("data") is not None:
         return TrackConfig(**payload["data"])
     return None
+
+
+def _safe_summary(obj) -> dict:
+    """Call ``obj.summary()`` if defined, else fall back to ``{'type': classname}``.
+
+    Lets third-party solvers/fields work without forcing a Protocol-level
+    summary contract.
+    """
+    fn = getattr(obj, "summary", None)
+    if callable(fn):
+        return fn()
+    return {"type": type(obj).__name__}
+
+
+def _config_summary(config) -> dict:
+    """Encode TrackConfig (or any config object) as a flat dict suitable for
+    inclusion in result.metadata. Distinct from the existing _encode_config
+    (which produces the npz envelope's ``config`` slot)."""
+    if config is None:
+        return {"type": None}
+    if isinstance(config, TrackConfig):
+        return {"type": "TrackConfig", **asdict(config)}
+    return {"type": type(config).__name__}
 
 
 def _masked_weighted_envelope(
@@ -89,6 +112,7 @@ def _diff_metrics(a: np.ndarray, b: np.ndarray, *, eps: float = 1e-30) -> tuple[
 class SliceTrackResult(Sequence[SliceDistribution]):
     snapshots: tuple[SliceDistribution, ...]
     config: object | None = None
+    metadata: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         snapshots = tuple(self.snapshots)
