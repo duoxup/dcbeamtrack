@@ -52,7 +52,7 @@ def test_gaussian_mixture_sampling_supports_legacy_current_key():
 
 
 def test_tri_grid_sampling_returns_slice_with_total_line_charge():
-    grid = TriGrid.from_size(width=1.0e-3, height=1.0e-3, spacing=0.25e-3)
+    grid = TriGrid.from_size(width=1.0e-3, height=1.0e-3, hmax=0.25e-3)
     current = 0.012
     vz0 = 1.1e7
     source = UniformDisk(radius=0.7e-3, current=current, vz=vz0)
@@ -68,6 +68,31 @@ def test_tri_grid_sampling_returns_slice_with_total_line_charge():
     assert len(dist) == grid.num_cells
     assert np.isclose(np.sum(dist.lam), current / vz0)
     assert np.isclose(np.sum(grid.cell_areas), 1.0e-6)
+
+
+def test_tri_grid_is_unstructured_and_hmax_controls_resolution():
+    # Mirror the legacy hmax=3µm convention from t2d_rec_V4.
+    grid = TriGrid.from_size(width=70e-6, height=70e-6, hmax=3e-6)
+
+    # Expect ~ (area / (0.5 hmax^2)) ≈ 1088 cells; meshpy adds Steiner points
+    # so the actual count is somewhat higher.
+    assert grid.num_cells > 1000
+
+    # Edges must not collapse onto the x/y axes (the structured-tri failure
+    # mode that biased sampling along grid directions).
+    angles = []
+    for poly in grid.polygons:
+        for i in range(3):
+            dx = poly[(i + 1) % 3, 0] - poly[i, 0]
+            dy = poly[(i + 1) % 3, 1] - poly[i, 1]
+            angles.append(np.arctan2(dy, dx) % np.pi)
+    angles_arr = np.asarray(angles)
+    axis_aligned = (
+        (np.abs(angles_arr) < np.deg2rad(5))
+        | (np.abs(angles_arr - np.pi / 2) < np.deg2rad(5))
+    ).mean()
+    # Structured 2-tri-per-cell gives ~67% axis-aligned; Delaunay gives <30%.
+    assert axis_aligned < 0.4
 
 
 def test_annulus_grid_sampling_matches_uniform_disk_line_charge_without_renormalization():
