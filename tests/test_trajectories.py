@@ -44,3 +44,33 @@ def test_particle_trajectories_is_frozen():
                                 mask=np.zeros(0, dtype=bool), keys=())
     with pytest.raises(Exception):
         traj.z = np.ones(1)
+
+
+def test_trajectories_default_keys_shapes_and_values():
+    # 3 particles, 2 snapshots, all live.
+    s0 = _snap(0.0, [0.0, 1.0, 2.0], [10.0, 11.0, 12.0])
+    s1 = _snap(1.0, [3.0, 4.0, 5.0], [13.0, 14.0, 15.0])
+    result = SliceTrackResult((s0, s1))
+
+    mask = np.array([True, False, True])
+    traj = result.trajectories(mask)
+
+    # Default keys: ("x", "y", "px", "py", "pz").
+    assert traj.keys == ("x", "y", "px", "py", "pz")
+    assert set(traj.data.keys()) == {"x", "y", "px", "py", "pz"}
+
+    # Shapes.
+    assert traj.z.shape == (2,)
+    for key in ("x", "y", "px", "py", "pz"):
+        assert traj.data[key].shape == (2, 2)
+    assert traj.live.shape == (2, 2)
+    assert traj.mask.shape == (3,)
+    assert traj.mask.dtype == bool
+
+    # Values for x and y on selected particles 0 and 2.
+    np.testing.assert_array_equal(traj.data["x"], np.array([[0.0, 2.0], [3.0, 5.0]]))
+    np.testing.assert_array_equal(traj.data["y"], np.array([[10.0, 12.0], [13.0, 15.0]]))
+
+    # mask field is a copy, not the input array.
+    assert traj.mask is not mask
+    np.testing.assert_array_equal(traj.mask, mask)

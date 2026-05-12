@@ -172,6 +172,42 @@ class SliceTrackResult(Sequence[SliceDistribution]):
             return np.ones((self.n_snapshots, self.n_particles), dtype=bool)
         return self.array("wall_hit") <= 0.5
 
+    def trajectories(
+        self,
+        mask: np.ndarray,
+        *,
+        keys: tuple[str, ...] = ("x", "y", "px", "py", "pz"),
+    ) -> "ParticleTrajectories":
+        """Particle-major extraction. See ParticleTrajectories docstring."""
+        mask_arr = np.asarray(mask)
+        if mask_arr.dtype != bool:
+            raise TypeError(
+                f"trajectories: mask must be bool dtype, got {mask_arr.dtype}."
+            )
+        if mask_arr.shape != (self.n_particles,):
+            raise ValueError(
+                f"trajectories: mask shape {mask_arr.shape} does not match "
+                f"({self.n_particles},)."
+            )
+        keys_tuple = tuple(keys)
+        if len(keys_tuple) == 0:
+            raise ValueError("trajectories: keys must be non-empty.")
+        extras = set(self.initial.extra_quantity_keys)
+        core = {"x", "y", "px", "py", "pz", "t", "lam", "z"}
+        for k in keys_tuple:
+            if k not in core and k not in extras:
+                raise ValueError(f"trajectories: unknown key: {k!r}")
+
+        data = {k: self.array(k)[:, mask_arr] for k in keys_tuple}
+        live = self.live_mask()[:, mask_arr]
+        return ParticleTrajectories(
+            z=self.z,
+            data=data,
+            live=live,
+            mask=mask_arr.copy(),
+            keys=keys_tuple,
+        )
+
     def radial_position(self) -> np.ndarray:
         x = self.array("x")
         y = self.array("y")
