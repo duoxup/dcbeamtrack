@@ -87,3 +87,7 @@ working code, run:
 ```bash
 PYTHONPATH=src python scripts/compare_t2d_rec_v4.py --steps 5000
 ```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
