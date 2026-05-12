@@ -107,3 +107,62 @@ def test_final_summary_all_dead_returns_nan():
     assert math.isnan(summary["r_max_final"])
     assert math.isnan(summary["r_mean_final"])
     assert math.isnan(summary["r_rms_final"])
+
+
+def test_compare_self_is_zero():
+    s0 = _snap(0.0, [1.0, 0.0], [0.0, 2.0])
+    s1 = _snap(1.0, [3.0, 0.0], [0.0, 4.0])
+    result = SliceTrackResult((s0, s1))
+    diff = result.compare(result)
+    for k, v in diff.items():
+        if k == "n_wall_hit_diff":
+            assert v == 0
+        else:
+            assert abs(v) <= 1e-15, f"{k} = {v}"
+
+
+def test_compare_perturbation():
+    s0a = _snap(0.0, [1.0, 0.0], [0.0, 2.0])
+    s1a = _snap(1.0, [3.0, 0.0], [0.0, 4.0])
+    a = SliceTrackResult((s0a, s1a))
+    # other = a but shifted in x by +1e-6 at every particle, every snapshot
+    s0b = _snap(0.0, [1.0 + 1e-6, 1e-6], [0.0, 2.0])
+    s1b = _snap(1.0, [3.0 + 1e-6, 1e-6], [0.0, 4.0])
+    b = SliceTrackResult((s0b, s1b))
+    diff = a.compare(b)
+    # max_abs_diff should be tiny but > 0
+    assert diff["r_max_max_abs_diff"] > 0.0
+    assert diff["r_max_max_abs_diff"] < 1e-5
+    # final_diff sign: a r_max final = 4 (particle 1 y=4), b r_max final = sqrt((1e-6)^2 + 4^2) ~ 4
+    # so |final_diff| should be very small
+    assert abs(diff["r_max_final_diff"]) < 1e-5
+
+
+def test_compare_mismatched_z_raises():
+    a = SliceTrackResult((_snap(0.0, [1.0], [0.0]), _snap(1.0, [1.0], [0.0])))
+    b = SliceTrackResult((_snap(0.0, [1.0], [0.0]), _snap(2.0, [1.0], [0.0])))
+    with pytest.raises(ValueError, match="z arrays"):
+        a.compare(b)
+
+
+def test_compare_mismatched_n_particles_raises():
+    a = SliceTrackResult((_snap(0.0, [1.0], [0.0]), _snap(1.0, [1.0], [0.0])))
+    b = SliceTrackResult((_snap(0.0, [1.0, 2.0], [0.0, 0.0]), _snap(1.0, [1.0, 2.0], [0.0, 0.0])))
+    with pytest.raises(ValueError, match="particle count"):
+        a.compare(b)
+
+
+def test_compare_intersection_live_mask():
+    # 3 particles. At snap 1: self kills particle 0 (huge x), other kills particle 1 (huge x).
+    # Particle 2 alive on both sides at value 7.0 -> diff should reflect particle 2 only.
+    s0a = _snap(0.0, [1.0, 1.0, 7.0], [0.0, 0.0, 0.0], wall_hit=[0.0, 0.0, 0.0])
+    s1a = _snap(1.0, [999.0, 1.0, 7.0], [0.0, 0.0, 0.0], wall_hit=[1.0, 0.0, 0.0])
+    a = SliceTrackResult((s0a, s1a))
+    s0b = _snap(0.0, [1.0, 1.0, 7.0], [0.0, 0.0, 0.0], wall_hit=[0.0, 0.0, 0.0])
+    s1b = _snap(1.0, [1.0, 999.0, 7.0], [0.0, 0.0, 0.0], wall_hit=[0.0, 1.0, 0.0])
+    b = SliceTrackResult((s0b, s1b))
+    diff = a.compare(b)
+    # On snap 1, intersection live = particle 2 only (value 7 on both) -> r_max diff = 0
+    # On snap 0, both fully alive -> r_max same on both -> diff = 0
+    # So all diffs should be ~0 (NOT 998 which would be the unmasked diff).
+    assert diff["r_max_max_abs_diff"] < 1e-12

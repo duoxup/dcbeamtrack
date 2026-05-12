@@ -68,6 +68,23 @@ def _masked_weighted_envelope(
     return r_max, r_mean, r_rms
 
 
+def _diff_metrics(a: np.ndarray, b: np.ndarray, *, eps: float = 1e-30) -> tuple[float, float, float]:
+    """Compute (max_abs_diff, max_rel_diff, final_diff) between two 1-D arrays.
+
+    max_rel_diff uses denom = max(|a|, |b|, eps) element-wise.
+    final_diff = a[-1] - b[-1] (signed). Uses np.nanmax so nan entries do not
+    poison the result. If every element is nan, max_abs and max_rel are nan.
+    """
+    abs_diff = np.abs(a - b)
+    denom = np.maximum(np.maximum(np.abs(a), np.abs(b)), eps)
+    rel_diff = abs_diff / denom
+    with np.errstate(invalid="ignore"):
+        max_abs = float(np.nanmax(abs_diff)) if not np.all(np.isnan(abs_diff)) else float("nan")
+        max_rel = float(np.nanmax(rel_diff)) if not np.all(np.isnan(rel_diff)) else float("nan")
+    final_diff = float(a[-1] - b[-1])
+    return max_abs, max_rel, final_diff
+
+
 @dataclass(frozen=True)
 class SliceTrackResult(Sequence[SliceDistribution]):
     snapshots: tuple[SliceDistribution, ...]
@@ -246,6 +263,55 @@ class SliceTrackResult(Sequence[SliceDistribution]):
         out["r_max_final"] = float(np.max(r))
         out["r_mean_final"] = float(np.sum(r * w) / wsum)
         out["r_rms_final"] = float(np.sqrt(np.sum(r2 * w) / wsum))
+        return out
+
+    def compare(self, other: "SliceTrackResult") -> dict:
+        """Pairwise envelope diff against another result on the same z grid.
+
+        Strict validation: raises ValueError if snapshot count, particle count, or
+        z arrays differ. Envelope diffs are computed on the intersection live mask
+        (particles alive on both sides at each snapshot), using self.weights() for
+        both sides so the comparison is consistent.
+
+        Returns flat dict with 9 envelope keys plus n_wall_hit_diff (int, 0 if
+        either side lacks the wall_hit extra).
+        """
+        if len(self) != len(other):
+            raise ValueError(
+                f"compare: snapshot count differs ({len(self)} vs {len(other)})."
+            )
+        if self.n_particles != other.n_particles:
+            raise ValueError(
+                f"compare: particle count differs ({self.n_particles} vs {other.n_particles})."
+            )
+        if not np.allclose(self.z, other.z, rtol=1e-9, atol=1e-12):
+            raise ValueError("compare: z arrays do not match within tolerance.")
+
+        x_s = self.array("x")
+        y_s = self.array("y")
+        x_o = other.array("x")
+        y_o = other.array("y")
+        w_s = self.weights(absolute=True)
+        live_both = self.live_mask() & other.live_mask()
+
+        env_s = _masked_weighted_envelope(x_s, y_s, w_s, live_both)
+        env_o = _masked_weighted_envelope(x_o, y_o, w_s, live_both)
+
+        out: dict = {}
+        for kind, a, b in zip(("r_max", "r_mean", "r_rms"), env_s, env_o):
+            ma, mr, fd = _diff_metrics(a, b)
+            out[f"{kind}_max_abs_diff"] = ma
+            out[f"{kind}_max_rel_diff"] = mr
+            out[f"{kind}_final_diff"] = fd
+
+        s_has_wh = "wall_hit" in self.snapshots[-1].extra_quantity_keys
+        o_has_wh = "wall_hit" in other.snapshots[-1].extra_quantity_keys
+        if s_has_wh and o_has_wh:
+            s_wh = int(np.asarray(self.snapshots[-1].get_data("wall_hit"), dtype=bool).sum())
+            o_wh = int(np.asarray(other.snapshots[-1].get_data("wall_hit"), dtype=bool).sum())
+            out["n_wall_hit_diff"] = s_wh - o_wh
+        else:
+            out["n_wall_hit_diff"] = 0
         return out
 
     def waist(self, kind: str = "rms") -> tuple[float, float]:
