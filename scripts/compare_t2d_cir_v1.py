@@ -43,11 +43,8 @@ def _legacy_velocity_arrays(history):
     )
 
 
-def _envelope(x, y, weights):
-    r = np.hypot(x, y)
-    r_max = np.max(r, axis=1)
-    r_mean = np.average(r, axis=1, weights=weights)
-    return r_max, r_mean
+def _prefix(d: dict, prefix: str) -> dict:
+    return {f"{prefix}_{k}": v for k, v in d.items()}
 
 
 def main() -> None:
@@ -220,8 +217,17 @@ def main() -> None:
     vz_new = new_result.array("vz")[:n_common]
     z_new = new_result.z[:n_common]
 
-    r_max_old, r_mean_old = _envelope(x_old, y_old, weights)
-    r_max_new, r_mean_new = _envelope(x_new, y_new, weights)
+    # Legacy envelope kept inline: legacy_history is a list of legacy
+    # snapshot objects, not a SliceTrackResult, so the new API does not apply.
+    r_old = np.hypot(x_old, y_old)
+    r_max_old = np.max(r_old, axis=1)
+    r_mean_old = np.average(r_old, axis=1, weights=weights)
+
+    # New-side envelope arrays for cross-comparison and npz dump.
+    z_new_full, r_max_new_full = new_result.radial_envelope("max")
+    _, r_mean_new_full = new_result.radial_envelope("mean")
+    r_max_new = r_max_new_full[:n_common]
+    r_mean_new = r_mean_new_full[:n_common]
 
     wall_hit_final = np.asarray(
         new_result.final.get_data("wall_hit"), dtype=bool
@@ -241,11 +247,8 @@ def main() -> None:
         "bz_uniform_T": bz_uniform,
         "vz0_m_per_s": float(vz0),
         "legacy_final_z_m": float(z_old[-1]),
-        "new_final_z_m": float(z_new[-1]),
         "legacy_final_r_max_m": float(r_max_old[-1]),
-        "new_final_r_max_m": float(r_max_new[-1]),
         "legacy_final_r_mean_m": float(r_mean_old[-1]),
-        "new_final_r_mean_m": float(r_mean_new[-1]),
         "r_max_max_abs_diff": float(np.max(np.abs(r_max_new - r_max_old))),
         "r_max_max_rel_diff": float(
             np.max(np.abs(r_max_new - r_max_old) / np.maximum(np.abs(r_max_old), 1e-30))
@@ -254,13 +257,14 @@ def main() -> None:
         "r_mean_max_rel_diff": float(
             np.max(np.abs(r_mean_new - r_mean_old) / np.maximum(np.abs(r_mean_old), 1e-30))
         ),
-        "new_wall_hit_count": int(np.sum(wall_hit_final)),
         "legacy_buggy_eu": True,
         "note": (
             "Legacy uses t2dcore.RUGrid which carries the Eu formula bug; "
             "results are reported for reference only and are NOT ground truth."
         ),
     }
+    summary.update(_prefix(new_result.envelope_summary(), "new"))
+    summary.update(_prefix(new_result.final_summary(), "new"))
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     suffix = f"steps{args.steps}_seed{args.seed}_{args.precision}"
@@ -292,15 +296,15 @@ def main() -> None:
 
     print(f"particles={summary['particles']}")
     print(f"snapshots compared={summary['snapshots_compared']}")
-    print(f"new   final r_max [um]={r_max_new[-1] * 1e6:.6f}")
+    print(f"new   final r_max [um]={summary['new_r_max_final'] * 1e6:.6f}")
     print(f"legacy final r_max [um]={r_max_old[-1] * 1e6:.6f}  (buggy Eu, reference)")
-    print(f"new   final r_mean [um]={r_mean_new[-1] * 1e6:.6f}")
+    print(f"new   final r_mean [um]={summary['new_r_mean_final'] * 1e6:.6f}")
     print(f"legacy final r_mean [um]={r_mean_old[-1] * 1e6:.6f}  (buggy Eu, reference)")
     print(f"r_max max abs diff [um]={summary['r_max_max_abs_diff'] * 1e6:.6f}")
     print(f"r_max max rel diff     ={summary['r_max_max_rel_diff']:.4e}")
     print(f"r_mean max abs diff [um]={summary['r_mean_max_abs_diff'] * 1e6:.6f}")
     print(f"r_mean max rel diff    ={summary['r_mean_max_rel_diff']:.4e}")
-    print(f"new wall_hit count     ={summary['new_wall_hit_count']}")
+    print(f"new wall_hit count     ={summary['new_n_wall_hit_final']}")
     print(f"summary={summary_path}")
     print(f"arrays={npz_path}")
 
