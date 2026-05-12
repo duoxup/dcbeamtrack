@@ -75,6 +75,14 @@ class UniformMagneticField:
             np.full_like(x_arr, self.bz, dtype=float),
         )
 
+    def summary(self) -> dict:
+        return {
+            "type": "UniformMagneticField",
+            "bx": float(self.bx),
+            "by": float(self.by),
+            "bz": float(self.bz),
+        }
+
 
 @dataclass(frozen=True)
 class AxialMagneticField:
@@ -171,3 +179,18 @@ class AxialMagneticField:
 
         coef = np.broadcast_to(self.br_coef(z_arr), x_arr.shape)
         return coef * x_arr, coef * y_arr, bz
+
+    def summary(self) -> dict:
+        z = np.asarray(self.z_m)
+        bz = np.asarray(self.bz_t)
+        return {
+            "type": "AxialMagneticField",
+            "n_samples": int(z.size),
+            "z_min_m": float(z.min()),
+            "z_max_m": float(z.max()),
+            "bz_min_t": float(bz.min()),
+            "bz_max_t": float(bz.max()),
+            "include_radial": bool(self.include_radial),
+            "br_window": int(self.br_window),
+            "br_poly_degree": int(self.br_poly_degree),
+        }

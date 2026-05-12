@@ -41,3 +41,29 @@ def test_rect_boundary_summary():
     assert math.isclose(summary["xmax"], 2.0)
     assert math.isclose(summary["ymin"], -0.5)
     assert math.isclose(summary["ymax"], 1.5)
+
+
+def test_uniform_magnetic_field_summary():
+    from dcbeamtrack import UniformMagneticField
+    summary = UniformMagneticField(bx=0.0, by=0.0, bz=0.6).summary()
+    assert summary == {"type": "UniformMagneticField", "bx": 0.0, "by": 0.0, "bz": 0.6}
+
+
+def test_axial_magnetic_field_summary():
+    from dcbeamtrack import AxialMagneticField
+    z_mm = np.linspace(-3.0, 33.0, 1001)
+    bz_t = 0.35 * np.sin(2.0 * np.pi * z_mm / 4.93)
+    field = AxialMagneticField.from_z_bz(z_mm, bz_t, z_unit="mm", include_radial=True)
+    summary = field.summary()
+    assert summary["type"] == "AxialMagneticField"
+    assert summary["n_samples"] == 1001
+    assert math.isclose(summary["z_min_m"], -3.0e-3)
+    assert math.isclose(summary["z_max_m"], 33.0e-3)
+    assert math.isclose(summary["bz_min_t"], float(bz_t.min()))
+    assert math.isclose(summary["bz_max_t"], float(bz_t.max()))
+    assert summary["include_radial"] is True
+    assert summary["br_window"] == 9
+    assert summary["br_poly_degree"] == 3
+    # No raw arrays anywhere.
+    for v in summary.values():
+        assert not isinstance(v, (np.ndarray, list))
