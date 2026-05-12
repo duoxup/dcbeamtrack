@@ -208,6 +208,46 @@ class SliceTrackResult(Sequence[SliceDistribution]):
         out["waist_r_rms"] = float(r_rms_arr[widx])
         return out
 
+    def final_summary(self) -> dict:
+        """Final-snapshot scalars on live particles.
+
+        Returns flat dict with: z_final, n_particles, n_live_final,
+        n_wall_hit_final (0 if no wall_hit extra), and r_{max,mean,rms}_final
+        on the live subset. r_*_final is nan when n_live_final == 0 (no raise:
+        terminal full absorption is a legitimate physical outcome).
+        """
+        final = self.snapshots[-1]
+        if "wall_hit" in final.extra_quantity_keys:
+            wh = np.asarray(final.get_data("wall_hit"), dtype=float)
+        else:
+            wh = np.zeros(self.n_particles, dtype=float)
+        live = wh <= 0.5
+        n_live = int(live.sum())
+        n_wh = int((wh > 0.5).sum())
+
+        out: dict = {
+            "z_final": float(final.z),
+            "n_particles": int(self.n_particles),
+            "n_live_final": n_live,
+            "n_wall_hit_final": n_wh,
+        }
+        if n_live == 0:
+            out["r_max_final"] = float("nan")
+            out["r_mean_final"] = float("nan")
+            out["r_rms_final"] = float("nan")
+            return out
+
+        x = np.asarray(final.x, dtype=float)[live]
+        y = np.asarray(final.y, dtype=float)[live]
+        w = self.weights(absolute=True)[live]
+        wsum = float(w.sum())
+        r2 = x * x + y * y
+        r = np.sqrt(r2)
+        out["r_max_final"] = float(np.max(r))
+        out["r_mean_final"] = float(np.sum(r * w) / wsum)
+        out["r_rms_final"] = float(np.sqrt(np.sum(r2 * w) / wsum))
+        return out
+
     def waist(self, kind: str = "rms") -> tuple[float, float]:
         z, envelope = self.radial_envelope(kind=kind)
         idx = int(np.nanargmin(envelope))
