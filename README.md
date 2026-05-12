@@ -93,12 +93,7 @@ Outputs land under `artifacts/examples/<stem>/`.
 ## Regression Tools
 
 `tests/test_api_result_regression.py` contains a small reference calculation that
-does not depend on the legacy source tree. For local comparison against the old
-working code, run:
-
-```bash
-PYTHONPATH=src python scripts/compare_t2d_rec_v4.py --steps 5000
-```
+does not depend on the legacy source tree.
 
 ## License
 
