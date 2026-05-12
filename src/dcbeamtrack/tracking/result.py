@@ -202,6 +202,12 @@ class SliceTrackResult(Sequence[SliceDistribution]):
         Returns a flat dict with keys: r_{max,mean,rms}_{peak,peak_z,final},
         waist_z, waist_r_rms. Raises ValueError if no snapshot has any live
         particles. Particles flagged via wall_hit are excluded via live_mask().
+
+        Note: ``r_{max,mean,rms}_final`` keys also appear in :meth:`final_summary`.
+        Merging both dicts under the same prefix lets final_summary's values win;
+        the two paths agree numerically when wall_hit is cumulative (the standard
+        case), so the overwrite is harmless. Use distinct prefixes if you want
+        both copies to coexist in one flat dict.
         """
         x = self.array("x")
         y = self.array("y")
@@ -232,6 +238,9 @@ class SliceTrackResult(Sequence[SliceDistribution]):
         n_wall_hit_final (0 if no wall_hit extra), and r_{max,mean,rms}_final
         on the live subset. r_*_final is nan when n_live_final == 0 (no raise:
         terminal full absorption is a legitimate physical outcome).
+
+        Note: the three ``r_*_final`` keys overlap with :meth:`envelope_summary`;
+        see that docstring for the merging convention.
         """
         final = self.snapshots[-1]
         if "wall_hit" in final.extra_quantity_keys:
