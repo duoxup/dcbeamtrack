@@ -9,7 +9,11 @@ Not on PyPI yet. Install directly from GitHub:
 ```bash
 pip install git+https://github.com/duoxup/dcbeamtrack.git
 pip install "dcbeamtrack[fast] @ git+https://github.com/duoxup/dcbeamtrack.git"
+pip install "dcbeamtrack[examples] @ git+https://github.com/duoxup/dcbeamtrack.git"
 ```
+
+Extras: `[fast]` adds `pypardiso` (multi-threaded MKL PARDISO);
+`[examples]` adds `matplotlib` for the runnable examples under `examples/`.
 
 Or clone for local development:
 

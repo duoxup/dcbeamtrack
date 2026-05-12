@@ -20,17 +20,31 @@ class FieldMap2D:
     ey_nodes: np.ndarray
     line_charge_internal: np.ndarray
 
+    def __post_init__(self) -> None:
+        # Cache the interpolators; field_at is called every tracker step so
+        # rebuilding them per-call is a measurable hotspot for long runs.
+        object.__setattr__(
+            self,
+            "_interp_ex",
+            RegularGridInterpolator(
+                (self.y_nodes, self.x_nodes), self.ex_nodes,
+                bounds_error=False, fill_value=0.0,
+            ),
+        )
+        object.__setattr__(
+            self,
+            "_interp_ey",
+            RegularGridInterpolator(
+                (self.y_nodes, self.x_nodes), self.ey_nodes,
+                bounds_error=False, fill_value=0.0,
+            ),
+        )
+
     def field_at(self, x, y) -> tuple[np.ndarray, np.ndarray]:
-        interp_ex = RegularGridInterpolator(
-            (self.y_nodes, self.x_nodes), self.ex_nodes, bounds_error=False, fill_value=0.0
-        )
-        interp_ey = RegularGridInterpolator(
-            (self.y_nodes, self.x_nodes), self.ey_nodes, bounds_error=False, fill_value=0.0
-        )
         x_arr = np.asarray(x, dtype=float).reshape(-1)
         y_arr = np.asarray(y, dtype=float).reshape(-1)
         points = np.column_stack([y_arr, x_arr])
-        return interp_ex(points), interp_ey(points)
+        return self._interp_ex(points), self._interp_ey(points)
 
 
 class RectFdmSpaceChargeSolver:
