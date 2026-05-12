@@ -146,3 +146,13 @@ class RectGrid:
             & (y > self.y_nodes[0])
             & (y < self.y_nodes[-1])
         )
+
+    def summary(self) -> dict:
+        return {
+            "type": "RectGrid",
+            "nx": int(self.nx),
+            "ny": int(self.ny),
+            "width": float(self.width),
+            "height": float(self.height),
+            "spacing": float(self.spacing),
+        }

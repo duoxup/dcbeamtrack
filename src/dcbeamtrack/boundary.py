@@ -31,6 +31,9 @@ class UnboundedBoundary:
     ) -> np.ndarray:
         return np.zeros(x.shape, dtype=bool)
 
+    def summary(self) -> dict:
+        return {"type": "UnboundedBoundary"}
+
 
 @dataclass(frozen=True)
 class CircularBoundary:
@@ -55,6 +58,9 @@ class CircularBoundary:
             vx[hit] = 0.0
             vy[hit] = 0.0
         return hit
+
+    def summary(self) -> dict:
+        return {"type": "CircularBoundary", "radius": float(self.radius)}
 
 
 @dataclass(frozen=True)
@@ -83,3 +89,12 @@ class RectBoundary:
             x[hit] = np.clip(x[hit], self.xmin, self.xmax)
             y[hit] = np.clip(y[hit], self.ymin, self.ymax)
         return hit
+
+    def summary(self) -> dict:
+        return {
+            "type": "RectBoundary",
+            "xmin": float(self.xmin),
+            "xmax": float(self.xmax),
+            "ymin": float(self.ymin),
+            "ymax": float(self.ymax),
+        }

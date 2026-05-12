@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Iterator, Sequence
 
@@ -12,7 +12,8 @@ from dcbeamtrack.config import TrackConfig
 
 
 _NPZ_FORMAT = "dcbeamtrack.SliceTrackResult"
-_NPZ_VERSION = 1
+_NPZ_VERSION = 2
+_NPZ_MIN_READABLE_VERSION = 1
 
 
 def _encode_config(config: object | None) -> dict:
@@ -27,6 +28,29 @@ def _decode_config(payload: dict) -> object | None:
     if payload.get("type") == "TrackConfig" and payload.get("data") is not None:
         return TrackConfig(**payload["data"])
     return None
+
+
+def _safe_summary(obj) -> dict:
+    """Call ``obj.summary()`` if defined, else fall back to ``{'type': classname}``.
+
+    Lets third-party solvers/fields work without forcing a Protocol-level
+    summary contract.
+    """
+    fn = getattr(obj, "summary", None)
+    if callable(fn):
+        return fn()
+    return {"type": type(obj).__name__}
+
+
+def _config_summary(config) -> dict:
+    """Encode TrackConfig (or any config object) as a flat dict suitable for
+    inclusion in result.metadata. Distinct from the existing _encode_config
+    (which produces the npz envelope's ``config`` slot)."""
+    if config is None:
+        return {"type": None}
+    if isinstance(config, TrackConfig):
+        return {"type": "TrackConfig", **asdict(config)}
+    return {"type": type(config).__name__}
 
 
 def _masked_weighted_envelope(
@@ -89,6 +113,7 @@ def _diff_metrics(a: np.ndarray, b: np.ndarray, *, eps: float = 1e-30) -> tuple[
 class SliceTrackResult(Sequence[SliceDistribution]):
     snapshots: tuple[SliceDistribution, ...]
     config: object | None = None
+    metadata: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         snapshots = tuple(self.snapshots)
@@ -390,8 +415,15 @@ class SliceTrackResult(Sequence[SliceDistribution]):
             "config": _encode_config(self.config),
             "extra_keys": list(extra_keys),
             "extra_array_names": extra_array_names,
+            "result_metadata": self.metadata,
         }
-        arrays["metadata"] = np.asarray(json.dumps(metadata))
+        try:
+            metadata_json = json.dumps(metadata)
+        except TypeError as exc:
+            raise ValueError(
+                f"result.metadata is not JSON-serializable: {exc}"
+            ) from exc
+        arrays["metadata"] = np.asarray(metadata_json)
         np.savez_compressed(path, **arrays)
         return path
 
@@ -402,7 +434,8 @@ class SliceTrackResult(Sequence[SliceDistribution]):
             metadata = json.loads(str(data["metadata"]))
             if metadata.get("format") != _NPZ_FORMAT:
                 raise ValueError(f"Unsupported result file format: {metadata.get('format')!r}.")
-            if int(metadata.get("version", -1)) != _NPZ_VERSION:
+            version = int(metadata.get("version", -1))
+            if version < _NPZ_MIN_READABLE_VERSION or version > _NPZ_VERSION:
                 raise ValueError(f"Unsupported result file version: {metadata.get('version')!r}.")
             if metadata.get("longitudinal_axis", metadata.get("fixed_axis")) != "z":
                 raise ValueError("Only z-longitudinal result files are supported.")
@@ -437,7 +470,12 @@ class SliceTrackResult(Sequence[SliceDistribution]):
                     extras=extras or None,
                 )
             )
-        return cls(tuple(snapshots), config=_decode_config(metadata.get("config", {})))
+        result_metadata = metadata.get("result_metadata", {})
+        return cls(
+            tuple(snapshots),
+            config=_decode_config(metadata.get("config", {})),
+            metadata=result_metadata,
+        )
 
     save = save_npz
     load = load_npz

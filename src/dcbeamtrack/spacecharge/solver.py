@@ -68,3 +68,11 @@ class RectFdmSpaceChargeSolver:
             ey_nodes=ey_nodes,
             line_charge_internal=line_charge.reshape(self.grid.internal_shape),
         )
+
+    def summary(self) -> dict:
+        return {
+            "type": "RectFdmSpaceChargeSolver",
+            "deposition": self.deposition,
+            "backend": self.backend,
+            "grid": self.grid.summary(),
+        }

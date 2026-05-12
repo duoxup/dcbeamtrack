@@ -54,6 +54,7 @@ class RectFdmCircularBoundarySolver:
             (grid.ny, grid.nx), interior_mask
         )
         self._interior_mask = interior_mask
+        self.n_interior_nodes = int(interior_mask.sum())
         self.backend = backend
         self._solve = make_sparse_solve(matrix, backend=backend)
 
@@ -94,3 +95,13 @@ class RectFdmCircularBoundarySolver:
             # 1-D (n_interior,) — differs from RectFdmSpaceChargeSolver's (ny-2, nx-2)
             line_charge_internal=line_charge_full[self._interior_mask],
         )
+
+    def summary(self) -> dict:
+        return {
+            "type": "RectFdmCircularBoundarySolver",
+            "radius": float(self.radius),
+            "deposition": self.deposition,
+            "backend": self.backend,
+            "grid": self.grid.summary(),
+            "n_interior_nodes": int(self.n_interior_nodes),
+        }

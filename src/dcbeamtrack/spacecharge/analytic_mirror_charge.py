@@ -143,3 +143,9 @@ class AnalyticMirrorChargeSpaceChargeSolver:
             )
 
         return AnalyticMirrorChargeFieldMap(ex=ex, ey=ey)
+
+    def summary(self) -> dict:
+        return {
+            "type": "AnalyticMirrorChargeSpaceChargeSolver",
+            "radius": float(self.radius),
+        }
