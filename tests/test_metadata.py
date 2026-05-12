@@ -18,3 +18,26 @@ def test_rect_grid_summary():
     # No numpy arrays or lists in the dict.
     for v in summary.values():
         assert not isinstance(v, (np.ndarray, list))
+
+
+def test_unbounded_boundary_summary():
+    from dcbeamtrack import UnboundedBoundary
+    summary = UnboundedBoundary().summary()
+    assert summary == {"type": "UnboundedBoundary"}
+
+
+def test_circular_boundary_summary():
+    from dcbeamtrack import CircularBoundary
+    summary = CircularBoundary(radius=1.5e-4).summary()
+    assert summary["type"] == "CircularBoundary"
+    assert math.isclose(summary["radius"], 1.5e-4)
+
+
+def test_rect_boundary_summary():
+    from dcbeamtrack import RectBoundary
+    summary = RectBoundary(xmin=-1.0, xmax=2.0, ymin=-0.5, ymax=1.5).summary()
+    assert summary["type"] == "RectBoundary"
+    assert math.isclose(summary["xmin"], -1.0)
+    assert math.isclose(summary["xmax"], 2.0)
+    assert math.isclose(summary["ymin"], -0.5)
+    assert math.isclose(summary["ymax"], 1.5)
