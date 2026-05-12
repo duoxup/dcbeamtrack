@@ -138,6 +138,14 @@ class SliceTrackResult(Sequence[SliceDistribution]):
     def __iter__(self) -> Iterator[SliceDistribution]:
         return iter(self.snapshots)
 
+    def __repr__(self) -> str:
+        z = self.z
+        return (
+            f"SliceTrackResult(n_snapshots={self.n_snapshots}, "
+            f"n_particles={self.n_particles}, "
+            f"z=[{z[0]:.4g}, {z[-1]:.4g}])"
+        )
+
     @property
     def n_snapshots(self) -> int:
         return len(self.snapshots)
