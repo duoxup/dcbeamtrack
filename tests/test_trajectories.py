@@ -175,3 +175,32 @@ def test_trajectories_unknown_key_raises():
 
     with pytest.raises(ValueError, match="unknown key"):
         result.trajectories(np.array([True, False]), keys=("x", "nope"))
+
+
+def test_random_mask_count_and_dtype():
+    s0 = _snap(0.0, np.arange(10, dtype=float), np.zeros(10))
+    result = SliceTrackResult((s0,))
+
+    m = result.random_mask(4, seed=0)
+    assert m.dtype == bool
+    assert m.shape == (10,)
+    assert int(m.sum()) == 4
+
+
+def test_random_mask_seed_reproducible():
+    s0 = _snap(0.0, np.arange(10, dtype=float), np.zeros(10))
+    result = SliceTrackResult((s0,))
+
+    m1 = result.random_mask(4, seed=42)
+    m2 = result.random_mask(4, seed=42)
+    np.testing.assert_array_equal(m1, m2)
+
+
+def test_random_mask_n_out_of_range_raises():
+    s0 = _snap(0.0, np.arange(3, dtype=float), np.zeros(3))
+    result = SliceTrackResult((s0,))
+
+    with pytest.raises(ValueError):
+        result.random_mask(0)
+    with pytest.raises(ValueError):
+        result.random_mask(4)
