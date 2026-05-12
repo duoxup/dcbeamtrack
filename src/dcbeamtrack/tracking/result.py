@@ -479,3 +479,19 @@ class SliceTrackResult(Sequence[SliceDistribution]):
 
     save = save_npz
     load = load_npz
+
+
+@dataclass(frozen=True)
+class ParticleTrajectories:
+    """Particle-major view of a SliceTrackResult selection.
+
+    Returned by :meth:`SliceTrackResult.trajectories`. Holds raw per-snapshot
+    data for the selected particles, plus the (n_snap, k) live mask so callers
+    can opt into nan-fill via :meth:`where_live`.
+    """
+
+    z: np.ndarray
+    data: dict[str, np.ndarray]
+    live: np.ndarray
+    mask: np.ndarray
+    keys: tuple[str, ...]
