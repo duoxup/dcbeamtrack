@@ -54,6 +54,10 @@ def _metrics(name, ref, test):
     }
 
 
+def _prefix(d: dict, prefix: str) -> dict:
+    return {f"{prefix}_{k}": v for k, v in d.items()}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Compare the refactored dcbeamtrack kernel against /mnt/d/OneDrive/pys/t2d_rec_V4.py parameters."
@@ -206,6 +210,8 @@ def main() -> None:
         "total_lam_legacy": float(np.sum(initial_legacy.macro_charges)),
         "total_lam_new": float(np.sum(new_result.initial.lam)),
     }
+    summary.update(_prefix(new_result.envelope_summary(), "new_env"))
+    summary.update(_prefix(new_result.final_summary(), "new_final"))
     for key, old_arr, new_arr in (
         ("x", x_old, x_new),
         ("y", y_old, y_new),
