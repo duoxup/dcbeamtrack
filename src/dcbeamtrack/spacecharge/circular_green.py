@@ -219,3 +219,11 @@ class CircularGreenSpaceChargeSolver:
         ex = er * cos_t - eu * sin_t
         ey = er * sin_t + eu * cos_t
         return CircularGreenFieldMap(ex=ex, ey=ey)
+
+    def summary(self) -> dict:
+        return {
+            "type": "CircularGreenSpaceChargeSolver",
+            "radius": float(self.radius),
+            "n_r": int(self.n_r),
+            "n_theta": int(self.n_theta),
+        }

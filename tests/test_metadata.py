@@ -67,3 +67,46 @@ def test_axial_magnetic_field_summary():
     # No raw arrays anywhere.
     for v in summary.values():
         assert not isinstance(v, (np.ndarray, list))
+
+
+def test_rect_fdm_solver_summary():
+    from dcbeamtrack import RectFdmSpaceChargeSolver
+    grid = RectGrid.from_size(width=3.0e-4, height=3.0e-4, spacing=3.0e-6)
+    solver = RectFdmSpaceChargeSolver(grid, deposition="CIC")
+    summary = solver.summary()
+    assert summary["type"] == "RectFdmSpaceChargeSolver"
+    assert summary["deposition"] == "CIC"
+    assert summary["backend"] == "auto"
+    assert summary["grid"]["type"] == "RectGrid"
+    assert summary["grid"]["nx"] == grid.nx
+    assert summary["grid"]["ny"] == grid.ny
+
+
+def test_rect_fdm_circular_solver_summary():
+    from dcbeamtrack import RectFdmCircularBoundarySolver
+    grid = RectGrid.from_size(width=3.0e-4, height=3.0e-4, spacing=3.0e-6)
+    solver = RectFdmCircularBoundarySolver(grid, radius=1.0e-4, deposition="CIC")
+    summary = solver.summary()
+    assert summary["type"] == "RectFdmCircularBoundarySolver"
+    assert math.isclose(summary["radius"], 1.0e-4)
+    assert summary["deposition"] == "CIC"
+    assert summary["backend"] == "auto"
+    assert summary["grid"]["type"] == "RectGrid"
+    assert summary["n_interior_nodes"] > 0
+
+
+def test_circular_green_solver_summary():
+    from dcbeamtrack import CircularGreenSpaceChargeSolver
+    solver = CircularGreenSpaceChargeSolver(radius=1.5e-4, n_r=64, n_theta=180)
+    summary = solver.summary()
+    assert summary["type"] == "CircularGreenSpaceChargeSolver"
+    assert math.isclose(summary["radius"], 1.5e-4)
+    assert summary["n_r"] == 64
+    assert summary["n_theta"] == 180
+
+
+def test_analytic_mirror_solver_summary():
+    from dcbeamtrack import AnalyticMirrorChargeSpaceChargeSolver
+    solver = AnalyticMirrorChargeSpaceChargeSolver(radius=2.0e-4)
+    summary = solver.summary()
+    assert summary == {"type": "AnalyticMirrorChargeSpaceChargeSolver", "radius": 2.0e-4}
