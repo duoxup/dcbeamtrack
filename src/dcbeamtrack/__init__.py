@@ -22,7 +22,7 @@ from .spacecharge import (
     SpaceChargeSolver,
 )
 from .sources import CallableDensity, GaussianMixture, UniformDisk, sample_slice_from_density_on_grid
-from .tracking import SliceTrackResult, track_slice
+from .tracking import ParticleTrajectories, SliceTrackResult, track_slice
 
 __all__ = [
     "__version__",
@@ -38,6 +38,7 @@ __all__ = [
     "FieldMap2DProtocol",
     "GaussianMixture",
     "MagneticField",
+    "ParticleTrajectories",
     "RectFdmCircularBoundarySolver",
     "RectFdmSpaceChargeSolver",
     "AnnulusGrid",

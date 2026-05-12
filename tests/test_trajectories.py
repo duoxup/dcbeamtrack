@@ -282,3 +282,11 @@ def test_where_live_preserves_keys_order_and_dict_order():
     filled = traj.where_live()
     assert filled.keys == ("y", "px", "x")
     assert list(filled.data.keys()) == ["y", "px", "x"]
+
+
+def test_particle_trajectories_re_exported_at_package_root():
+    from dcbeamtrack import ParticleTrajectories as PT_root
+    from dcbeamtrack.tracking import ParticleTrajectories as PT_sub
+    from dcbeamtrack.tracking.result import ParticleTrajectories as PT_impl
+    assert PT_root is PT_impl
+    assert PT_sub is PT_impl
