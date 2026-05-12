@@ -9,16 +9,38 @@ from dcbeamtrack.mesh import RectGrid
 
 
 class TransverseBoundary(Protocol):
-    """Transverse wall used by the tracker to absorb particles."""
+    """Transverse wall used by the tracker to absorb particles.
+
+    See ``dcbeamtrack.boundary`` for the built-in :class:`UnboundedBoundary`,
+    :class:`CircularBoundary`, and :class:`RectBoundary` implementations.
+    """
 
     def absorb(
         self, x: np.ndarray, y: np.ndarray, vx: np.ndarray, vy: np.ndarray
     ) -> np.ndarray:
-        """Clip wall-hit particles in place and return a bool mask of which were hit.
+        """Clip wall-hit particles in place and return a bool hit mask.
 
-        The mask covers every particle currently outside the wall (idempotent: a
-        particle already pinned to the wall will report True again). The tracker
-        OR-accumulates these masks into a persistent ``wall_hit`` flag.
+        Parameters
+        ----------
+        x, y, vx, vy : numpy.ndarray
+            All four with identical shape ``(n_particles,)``, float dtype.
+
+        Returns
+        -------
+        numpy.ndarray
+            Bool array of shape ``(n_particles,)``. ``True`` indicates the
+            particle was outside (or on, depending on the wall convention)
+            and was clipped on this call.
+
+        Notes
+        -----
+        Implementations may mutate ``x``, ``y``, ``vx``, ``vy`` in place to
+        clip particles to the wall and zero out transverse velocities — the
+        built-in :class:`CircularBoundary` and :class:`RectBoundary` both
+        do. The call is idempotent: a particle previously clipped will
+        report ``True`` again if it still sits exactly on the wall. The
+        tracker OR-accumulates these masks into a persistent ``wall_hit``
+        flag, so repeated ``True`` s are harmless.
         """
 
 

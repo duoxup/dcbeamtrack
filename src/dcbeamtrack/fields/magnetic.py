@@ -7,8 +7,35 @@ import numpy as np
 
 
 class MagneticField(Protocol):
+    """External magnetic field sampled by the tracker at particle positions.
+
+    Frame: laboratory (no relativistic boost). Frozen for the duration of
+    one simulation — the tracker assumes the field is time-independent.
+
+    See ``dcbeamtrack.fields`` for :class:`UniformMagneticField` and
+    :class:`AxialMagneticField`.
+    """
+
     def at(self, x, y, z) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """Return Bx, By, Bz [T] at particle positions."""
+        """Return ``(Bx, By, Bz)`` in tesla at the requested positions.
+
+        Parameters
+        ----------
+        x, y, z : array-like
+            Identical shape. The tracker passes ``(n_particles,)`` arrays,
+            but implementations should accept any shape that NumPy
+            broadcasts naturally.
+
+        Returns
+        -------
+        tuple of numpy.ndarray
+            ``(Bx, By, Bz)`` each with the same shape as the inputs,
+            units T.
+
+        Notes
+        -----
+        Implementations must not mutate the input arrays.
+        """
 
 
 def _local_polynomial_derivative(
