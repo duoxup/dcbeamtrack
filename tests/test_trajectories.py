@@ -143,3 +143,35 @@ def test_trajectories_empty_mask_returns_zero_width():
     assert traj.data["y"].shape == (2, 0)
     assert traj.live.shape == (2, 0)
     assert traj.mask.sum() == 0
+
+
+def test_trajectories_mask_wrong_length_raises():
+    s0 = _snap(0.0, [0.0, 1.0, 2.0], np.zeros(3))
+    result = SliceTrackResult((s0,))
+
+    with pytest.raises(ValueError, match="mask shape"):
+        result.trajectories(np.array([True, False]))
+
+
+def test_trajectories_mask_non_bool_dtype_raises():
+    s0 = _snap(0.0, [0.0, 1.0], np.zeros(2))
+    result = SliceTrackResult((s0,))
+
+    with pytest.raises(TypeError, match="bool"):
+        result.trajectories(np.array([1, 0]))
+
+
+def test_trajectories_empty_keys_raises():
+    s0 = _snap(0.0, [0.0, 1.0], np.zeros(2))
+    result = SliceTrackResult((s0,))
+
+    with pytest.raises(ValueError, match="non-empty"):
+        result.trajectories(np.array([True, False]), keys=())
+
+
+def test_trajectories_unknown_key_raises():
+    s0 = _snap(0.0, [0.0, 1.0], np.zeros(2))
+    result = SliceTrackResult((s0,))
+
+    with pytest.raises(ValueError, match="unknown key"):
+        result.trajectories(np.array([True, False]), keys=("x", "nope"))
