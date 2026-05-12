@@ -145,6 +145,41 @@ def test_trajectories_empty_mask_returns_zero_width():
     assert traj.mask.sum() == 0
 
 
+def test_particle_trajectories_attribute_access_for_keys():
+    s0 = _snap(0.0, [0.0, 1.0, 2.0], [10.0, 11.0, 12.0])
+    s1 = _snap(1.0, [3.0, 4.0, 5.0], [13.0, 14.0, 15.0])
+    result = SliceTrackResult((s0, s1))
+
+    traj = result.trajectories(np.array([True, True, True]), keys=("x", "y"))
+
+    np.testing.assert_array_equal(traj.x, traj.data["x"])
+    np.testing.assert_array_equal(traj.y, traj.data["y"])
+    assert "x" in dir(traj)
+    assert "y" in dir(traj)
+
+
+def test_particle_trajectories_z_attribute_returns_1d_field():
+    s0 = _snap(0.0, [0.0, 1.0], [10.0, 11.0])
+    s1 = _snap(1.0, [3.0, 4.0], [13.0, 14.0])
+    result = SliceTrackResult((s0, s1))
+
+    traj = result.trajectories(np.array([True, True]), keys=("z", "x"))
+
+    # traj.z is the dataclass field (1D), not the 2D broadcast in data.
+    assert traj.z.shape == (2,)
+    np.testing.assert_array_equal(traj.z, [0.0, 1.0])
+    assert traj.data["z"].shape == (2, 2)
+
+
+def test_particle_trajectories_unknown_attribute_raises():
+    s0 = _snap(0.0, [0.0, 1.0], [10.0, 11.0])
+    result = SliceTrackResult((s0,))
+    traj = result.trajectories(np.array([True, True]), keys=("x",))
+
+    with pytest.raises(AttributeError, match="no attribute"):
+        traj.no_such_key
+
+
 def test_trajectories_default_mask_selects_all_particles():
     s0 = _snap(0.0, [0.0, 1.0, 2.0], [10.0, 11.0, 12.0])
     s1 = _snap(1.0, [3.0, 4.0, 5.0], [13.0, 14.0, 15.0])

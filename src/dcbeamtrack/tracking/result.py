@@ -579,6 +579,12 @@ class ParticleTrajectories:
     Returned by :meth:`SliceTrackResult.trajectories`. Holds raw per-snapshot
     data for the selected particles, plus the (n_snap, k) live mask so callers
     can opt into nan-fill via :meth:`where_live`.
+
+    Each key in ``data`` is also accessible as an attribute, e.g. ``traj.x``
+    is equivalent to ``traj.data["x"]``. Names that collide with a dataclass
+    field (``z``, ``data``, ``live``, ``mask``, ``keys``) resolve to the field;
+    in particular ``traj.z`` returns the 1D snapshot z, while ``traj.data['z']``
+    returns the 2D broadcast version when ``"z"`` is in ``keys``.
     """
 
     z: np.ndarray
@@ -586,6 +592,23 @@ class ParticleTrajectories:
     live: np.ndarray
     mask: np.ndarray
     keys: tuple[str, ...]
+
+    def __getattr__(self, name: str) -> np.ndarray:
+        if name.startswith("_") or name == "data":
+            raise AttributeError(name)
+        try:
+            data = self.__dict__["data"]
+        except KeyError:
+            raise AttributeError(name) from None
+        try:
+            return data[name]
+        except KeyError:
+            raise AttributeError(
+                f"{type(self).__name__!r} object has no attribute {name!r}"
+            ) from None
+
+    def __dir__(self) -> list[str]:
+        return list(super().__dir__()) + list(self.keys)
 
     def where_live(self, value: float = np.nan) -> "ParticleTrajectories":
         """Return a new ParticleTrajectories with dead positions filled by ``value``.
