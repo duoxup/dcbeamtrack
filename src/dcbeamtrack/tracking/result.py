@@ -225,6 +225,23 @@ class SliceTrackResult(Sequence[SliceDistribution]):
         out[idx] = True
         return out
 
+    def evenly_spaced_mask(self, n: int) -> np.ndarray:
+        """Bool mask of length n_particles with n evenly-spaced True entries.
+
+        Indices are ``np.linspace(0, n_particles - 1, n).astype(int)``. For
+        ``n <= n_particles`` the resulting indices are distinct. Raises
+        ``ValueError`` if n is out of range [1, n_particles].
+        """
+        n_int = int(n)
+        if n_int < 1 or n_int > self.n_particles:
+            raise ValueError(
+                f"evenly_spaced_mask: n must be in [1, {self.n_particles}], got {n_int}."
+            )
+        idx = np.linspace(0, self.n_particles - 1, n_int).astype(int)
+        out = np.zeros(self.n_particles, dtype=bool)
+        out[idx] = True
+        return out
+
     def radial_position(self) -> np.ndarray:
         x = self.array("x")
         y = self.array("y")

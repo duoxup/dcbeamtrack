@@ -204,3 +204,34 @@ def test_random_mask_n_out_of_range_raises():
         result.random_mask(0)
     with pytest.raises(ValueError):
         result.random_mask(4)
+
+
+def test_evenly_spaced_mask_count_no_duplicates():
+    s0 = _snap(0.0, np.arange(10, dtype=float), np.zeros(10))
+    result = SliceTrackResult((s0,))
+
+    m = result.evenly_spaced_mask(4)
+    assert m.dtype == bool
+    assert m.shape == (10,)
+    assert int(m.sum()) == 4
+    # No duplicates implicit from boolean mask, but check indices distinct.
+    idx = np.where(m)[0]
+    assert len(set(idx.tolist())) == 4
+
+
+def test_evenly_spaced_mask_full_selection():
+    s0 = _snap(0.0, np.arange(5, dtype=float), np.zeros(5))
+    result = SliceTrackResult((s0,))
+
+    m = result.evenly_spaced_mask(5)
+    np.testing.assert_array_equal(m, np.ones(5, dtype=bool))
+
+
+def test_evenly_spaced_mask_out_of_range_raises():
+    s0 = _snap(0.0, np.arange(3, dtype=float), np.zeros(3))
+    result = SliceTrackResult((s0,))
+
+    with pytest.raises(ValueError):
+        result.evenly_spaced_mask(0)
+    with pytest.raises(ValueError):
+        result.evenly_spaced_mask(4)
