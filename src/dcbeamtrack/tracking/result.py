@@ -172,6 +172,85 @@ class SliceTrackResult(Sequence[SliceDistribution]):
             return np.ones((self.n_snapshots, self.n_particles), dtype=bool)
         return self.array("wall_hit") <= 0.5
 
+    def trajectories(
+        self,
+        mask: np.ndarray,
+        *,
+        keys: tuple[str, ...] = ("x", "y", "px", "py", "pz"),
+    ) -> "ParticleTrajectories":
+        """Extract per-snapshot data for the particles selected by ``mask``.
+
+        ``mask`` must be a bool ndarray of shape ``(n_particles,)``. ``keys``
+        is normalized to a tuple; each key is resolved via :meth:`array`, so
+        the core kinematic keys (``x``, ``y``, ``px``, ``py``, ``pz``, ``t``,
+        ``lam``, ``z``) and any extra quantity carried by the snapshots
+        (e.g. ``wall_hit``) are accepted. Returns a :class:`ParticleTrajectories`
+        whose ``data[k]`` has shape ``(n_snapshots, k_selected)``, with columns
+        in original particle-index order.
+        """
+        mask_arr = np.asarray(mask)
+        if mask_arr.dtype != bool:
+            raise TypeError(
+                f"trajectories: mask must be bool dtype, got {mask_arr.dtype}."
+            )
+        if mask_arr.shape != (self.n_particles,):
+            raise ValueError(
+                f"trajectories: mask shape {mask_arr.shape} does not match "
+                f"({self.n_particles},)."
+            )
+        keys_tuple = tuple(keys)
+        if len(keys_tuple) == 0:
+            raise ValueError("trajectories: keys must be non-empty.")
+        extras = set(self.initial.extra_quantity_keys)
+        core = {"x", "y", "px", "py", "pz", "t", "lam", "z"}
+        for k in keys_tuple:
+            if k not in core and k not in extras:
+                raise ValueError(f"trajectories: unknown key: {k!r}")
+
+        data = {k: self.array(k)[:, mask_arr] for k in keys_tuple}
+        live = self.live_mask()[:, mask_arr]
+        return ParticleTrajectories(
+            z=self.z,
+            data=data,
+            live=live,
+            mask=mask_arr.copy(),
+            keys=keys_tuple,
+        )
+
+    def random_mask(self, n: int, *, seed: int | None = None) -> np.ndarray:
+        """Bool mask of length n_particles with n uniformly-random True entries.
+
+        Same ``seed`` produces the same mask. Raises ``ValueError`` if n is out
+        of range [1, n_particles].
+        """
+        n_int = int(n)
+        if n_int < 1 or n_int > self.n_particles:
+            raise ValueError(
+                f"random_mask: n must be in [1, {self.n_particles}], got {n_int}."
+            )
+        rng = np.random.default_rng(seed)
+        idx = rng.choice(self.n_particles, size=n_int, replace=False)
+        out = np.zeros(self.n_particles, dtype=bool)
+        out[idx] = True
+        return out
+
+    def evenly_spaced_mask(self, n: int) -> np.ndarray:
+        """Bool mask of length n_particles with n evenly-spaced True entries.
+
+        Indices are ``np.linspace(0, n_particles - 1, n).astype(int)``. For
+        ``n <= n_particles`` the resulting indices are distinct. Raises
+        ``ValueError`` if n is out of range [1, n_particles].
+        """
+        n_int = int(n)
+        if n_int < 1 or n_int > self.n_particles:
+            raise ValueError(
+                f"evenly_spaced_mask: n must be in [1, {self.n_particles}], got {n_int}."
+            )
+        idx = np.linspace(0, self.n_particles - 1, n_int).astype(int)
+        out = np.zeros(self.n_particles, dtype=bool)
+        out[idx] = True
+        return out
+
     def radial_position(self) -> np.ndarray:
         x = self.array("x")
         y = self.array("y")
@@ -479,3 +558,35 @@ class SliceTrackResult(Sequence[SliceDistribution]):
 
     save = save_npz
     load = load_npz
+
+
+@dataclass(frozen=True)
+class ParticleTrajectories:
+    """Particle-major view of a SliceTrackResult selection.
+
+    Returned by :meth:`SliceTrackResult.trajectories`. Holds raw per-snapshot
+    data for the selected particles, plus the (n_snap, k) live mask so callers
+    can opt into nan-fill via :meth:`where_live`.
+    """
+
+    z: np.ndarray
+    data: dict[str, np.ndarray]
+    live: np.ndarray
+    mask: np.ndarray
+    keys: tuple[str, ...]
+
+    def where_live(self, value: float = np.nan) -> "ParticleTrajectories":
+        """Return a new ParticleTrajectories with dead positions filled by ``value``.
+
+        All 2D arrays in ``data`` are replaced by ``np.where(self.live, arr, value)``.
+        ``z``, ``live``, ``mask``, and ``keys`` are preserved. ``data`` insertion
+        order matches ``self.keys``.
+        """
+        new_data = {k: np.where(self.live, self.data[k], value) for k in self.keys}
+        return ParticleTrajectories(
+            z=self.z,
+            data=new_data,
+            live=self.live,
+            mask=self.mask,
+            keys=self.keys,
+        )
