@@ -12,7 +12,8 @@ from dcbeamtrack.config import TrackConfig
 
 
 _NPZ_FORMAT = "dcbeamtrack.SliceTrackResult"
-_NPZ_VERSION = 1
+_NPZ_VERSION = 2
+_NPZ_MIN_READABLE_VERSION = 1
 
 
 def _encode_config(config: object | None) -> dict:
@@ -414,8 +415,15 @@ class SliceTrackResult(Sequence[SliceDistribution]):
             "config": _encode_config(self.config),
             "extra_keys": list(extra_keys),
             "extra_array_names": extra_array_names,
+            "result_metadata": self.metadata,
         }
-        arrays["metadata"] = np.asarray(json.dumps(metadata))
+        try:
+            metadata_json = json.dumps(metadata)
+        except TypeError as exc:
+            raise ValueError(
+                f"result.metadata is not JSON-serializable: {exc}"
+            ) from exc
+        arrays["metadata"] = np.asarray(metadata_json)
         np.savez_compressed(path, **arrays)
         return path
 
@@ -426,7 +434,8 @@ class SliceTrackResult(Sequence[SliceDistribution]):
             metadata = json.loads(str(data["metadata"]))
             if metadata.get("format") != _NPZ_FORMAT:
                 raise ValueError(f"Unsupported result file format: {metadata.get('format')!r}.")
-            if int(metadata.get("version", -1)) != _NPZ_VERSION:
+            version = int(metadata.get("version", -1))
+            if version < _NPZ_MIN_READABLE_VERSION or version > _NPZ_VERSION:
                 raise ValueError(f"Unsupported result file version: {metadata.get('version')!r}.")
             if metadata.get("longitudinal_axis", metadata.get("fixed_axis")) != "z":
                 raise ValueError("Only z-longitudinal result files are supported.")
@@ -461,7 +470,12 @@ class SliceTrackResult(Sequence[SliceDistribution]):
                     extras=extras or None,
                 )
             )
-        return cls(tuple(snapshots), config=_decode_config(metadata.get("config", {})))
+        result_metadata = metadata.get("result_metadata", {})
+        return cls(
+            tuple(snapshots),
+            config=_decode_config(metadata.get("config", {})),
+            metadata=result_metadata,
+        )
 
     save = save_npz
     load = load_npz

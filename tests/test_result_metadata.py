@@ -106,3 +106,54 @@ def test_simulation_run_populates_metadata():
     assert meta["config"]["type"] == "TrackConfig"
     assert meta["particle_counts"]["n_initial"] == result.n_particles
     assert meta["particle_counts"]["n_live_final"] + meta["particle_counts"]["n_wall_hit_final"] == result.n_particles
+
+
+def test_metadata_roundtrip_v2(tmp_path: Path):
+    s0 = _snap(0.0, [1.0, 0.0], [0.0, 2.0])
+    s1 = _snap(1.0, [3.0, 0.0], [0.0, 4.0])
+    original = SliceTrackResult(
+        (s0, s1),
+        metadata={
+            "solver": {"type": "AnalyticMirrorChargeSpaceChargeSolver", "radius": 1.5e-4},
+            "magnetic_field": {"type": "UniformMagneticField", "bx": 0.0, "by": 0.0, "bz": 0.6},
+            "boundary": {"type": "CircularBoundary", "radius": 1.5e-4},
+            "config": {"type": None},
+            "particle_counts": {"n_initial": 2, "n_live_final": 2, "n_wall_hit_final": 0},
+        },
+    )
+    path = tmp_path / "roundtrip.npz"
+    original.save_npz(path)
+    loaded = SliceTrackResult.load_npz(path)
+    assert loaded.metadata == original.metadata
+
+
+def test_load_v1_npz_returns_empty_metadata(tmp_path: Path):
+    # Synthesize a v1-style npz by re-encoding the envelope with version=1
+    # and stripping result_metadata.
+    s0 = _snap(0.0, [1.0], [0.0])
+    s1 = _snap(1.0, [1.0], [0.0])
+    original = SliceTrackResult((s0, s1), metadata={"will": "be_stripped"})
+    path = tmp_path / "v2.npz"
+    original.save_npz(path)
+
+    # Read, rewrite envelope as v1.
+    with np.load(path, allow_pickle=False) as data:
+        arrays = {k: data[k] for k in data.files if k != "metadata"}
+        envelope = json.loads(str(data["metadata"]))
+    envelope["version"] = 1
+    envelope.pop("result_metadata", None)
+    arrays["metadata"] = np.asarray(json.dumps(envelope))
+    v1_path = tmp_path / "v1.npz"
+    np.savez_compressed(v1_path, **arrays)
+
+    loaded = SliceTrackResult.load_npz(v1_path)
+    assert loaded.metadata == {}
+    assert len(loaded) == 2
+
+
+def test_save_rejects_non_json_metadata(tmp_path: Path):
+    s0 = _snap(0.0, [1.0], [0.0])
+    s1 = _snap(1.0, [1.0], [0.0])
+    bad = SliceTrackResult((s0, s1), metadata={"bad": np.array([1, 2])})
+    with pytest.raises(ValueError, match="JSON-serializable"):
+        bad.save_npz(tmp_path / "bad.npz")
