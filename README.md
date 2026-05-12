@@ -67,11 +67,12 @@ z, rms_radius = result.radial_envelope("rms")
 
 ## Examples
 
-Three runnable examples live in `examples/`:
+Four runnable examples live in `examples/`:
 
 - `examples/01_rect_fdm_minimal.py` — minimal `rect_fdm` simulation; runnable companion to the code block above.
 - `examples/02_solver_comparison.py` — same slice through `rect_fdm` and `circular_green` with envelope comparison and a saved plot.
 - `examples/03_result_analysis.py` — exercises the result-side diagnostic API (`envelope_summary`, `final_summary`, `metadata`, `trajectories`, `random_mask`, `evenly_spaced_mask`, `where_live`).
+- `examples/04_custom_solver.py` — write your own `SpaceChargeSolver` + `FieldMap2DProtocol` from scratch and plug it in via `DcBeamSimulation.from_solver`.
 
 Run any example from the repo root with `python examples/<name>.py`
 (`PYTHONPATH=src python examples/<name>.py` if the package is not pip-installed).
