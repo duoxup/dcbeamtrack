@@ -5,7 +5,7 @@ from partdist import ParticleArrayQuantity, SliceDistribution
 
 from dcbeamtrack.boundary import TransverseBoundary, UnboundedBoundary
 from dcbeamtrack.config import TrackConfig
-from dcbeamtrack.fields import MagneticField
+from dcbeamtrack.fields import ElectricField, MagneticField, ZeroElectricField
 from dcbeamtrack.spacecharge import SpaceChargeSolver
 
 from .boris import boris_push_velocity, velocity_to_momentum_evc
@@ -77,6 +77,7 @@ def track_slice(
     magnetic_field: MagneticField,
     config: TrackConfig,
     boundary: TransverseBoundary | None = None,
+    electric_field: ElectricField | None = None,
 ) -> SliceTrackResult:
     """Track a DC-beam slice while constraining all particles to a reference z plane."""
     _validate_slice(distribution)
@@ -87,6 +88,9 @@ def track_slice(
     solver = spacecharge_solver
     active_boundary: TransverseBoundary = (
         boundary if boundary is not None else UnboundedBoundary()
+    )
+    active_electric_field: ElectricField = (
+        electric_field if electric_field is not None else ZeroElectricField()
     )
 
     dtype = _dtype_from_config(config)
@@ -140,7 +144,8 @@ def track_slice(
         )
 
         field_map = solver.solve(current)
-        ex, ey = field_map.field_at(x, y)
+        ex_sc, ey_sc = field_map.field_at(x, y)
+        ex_ext, ey_ext, ez_ext = active_electric_field.at(x, y, current_z)
         bx, by, bz = magnetic_field.at(x, y, current_z)
         alive = ~wall_hit
 
@@ -148,9 +153,9 @@ def track_slice(
             vx,
             vy,
             vz,
-            ex=ex,
-            ey=ey,
-            ez=np.zeros_like(ex),
+            ex=ex_sc + ex_ext,
+            ey=ey_sc + ey_ext,
+            ez=ez_ext,
             bx=bx,
             by=by,
             bz=bz,

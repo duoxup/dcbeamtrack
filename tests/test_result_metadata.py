@@ -99,9 +99,17 @@ def test_simulation_run_populates_metadata():
     result = simulation.run(initial)
 
     meta = result.metadata
-    assert set(meta.keys()) == {"solver", "magnetic_field", "boundary", "config", "particle_counts"}
+    assert set(meta.keys()) == {
+        "solver",
+        "magnetic_field",
+        "electric_field",
+        "boundary",
+        "config",
+        "particle_counts",
+    }
     assert meta["solver"]["type"] == "RectFdmSpaceChargeSolver"
     assert meta["magnetic_field"]["type"] == "AxialMagneticField"
+    assert meta["electric_field"]["type"] == "ZeroElectricField"
     assert meta["boundary"]["type"] == "RectBoundary"
     assert meta["config"]["type"] == "TrackConfig"
     assert meta["particle_counts"]["n_initial"] == result.n_particles

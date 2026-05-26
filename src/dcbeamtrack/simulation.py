@@ -7,7 +7,7 @@ from partdist import SliceDistribution
 
 from dcbeamtrack.boundary import CircularBoundary, RectBoundary, TransverseBoundary
 from dcbeamtrack.config import TrackConfig
-from dcbeamtrack.fields import MagneticField
+from dcbeamtrack.fields import ElectricField, MagneticField, ZeroElectricField
 from dcbeamtrack.mesh import RectGrid
 from dcbeamtrack.spacecharge import (
     AnalyticMirrorChargeSpaceChargeSolver,
@@ -32,6 +32,7 @@ class DcBeamSimulation:
     config: TrackConfig
     spacecharge_solver: SpaceChargeSolver
     boundary: TransverseBoundary | None = None
+    electric_field: ElectricField | None = None
 
     @classmethod
     def from_solver(
@@ -41,12 +42,14 @@ class DcBeamSimulation:
         magnetic_field: MagneticField,
         config: TrackConfig,
         boundary: TransverseBoundary | None = None,
+        electric_field: ElectricField | None = None,
     ) -> "DcBeamSimulation":
         return cls(
             magnetic_field=magnetic_field,
             config=config,
             spacecharge_solver=spacecharge_solver,
             boundary=boundary,
+            electric_field=electric_field,
         )
 
     @classmethod
@@ -59,6 +62,7 @@ class DcBeamSimulation:
         n_r: int = 96,
         n_theta: int = 720,
         r_eps: float = 1e-9,
+        electric_field: ElectricField | None = None,
     ) -> "DcBeamSimulation":
         solver = CircularGreenSpaceChargeSolver(
             radius=radius,
@@ -71,6 +75,7 @@ class DcBeamSimulation:
             config=config,
             spacecharge_solver=solver,
             boundary=CircularBoundary(radius=radius),
+            electric_field=electric_field,
         )
 
     @classmethod
@@ -80,6 +85,7 @@ class DcBeamSimulation:
         radius: float,
         magnetic_field: MagneticField,
         config: TrackConfig,
+        electric_field: ElectricField | None = None,
     ) -> "DcBeamSimulation":
         solver = AnalyticMirrorChargeSpaceChargeSolver(radius=radius)
         return cls(
@@ -87,6 +93,7 @@ class DcBeamSimulation:
             config=config,
             spacecharge_solver=solver,
             boundary=CircularBoundary(radius=radius),
+            electric_field=electric_field,
         )
 
     @classmethod
@@ -98,6 +105,7 @@ class DcBeamSimulation:
         magnetic_field: MagneticField,
         config: TrackConfig,
         deposition: str | None = None,
+        electric_field: ElectricField | None = None,
     ) -> "DcBeamSimulation":
         solver = RectFdmCircularBoundarySolver(
             grid,
@@ -109,6 +117,7 @@ class DcBeamSimulation:
             config=config,
             spacecharge_solver=solver,
             boundary=CircularBoundary(radius=radius),
+            electric_field=electric_field,
         )
 
     @classmethod
@@ -119,6 +128,7 @@ class DcBeamSimulation:
         magnetic_field: MagneticField,
         config: TrackConfig,
         spacecharge_solver: RectFdmSpaceChargeSolver | None = None,
+        electric_field: ElectricField | None = None,
     ) -> "DcBeamSimulation":
         solver = spacecharge_solver or RectFdmSpaceChargeSolver(
             grid,
@@ -129,6 +139,7 @@ class DcBeamSimulation:
             config=config,
             spacecharge_solver=solver,
             boundary=RectBoundary.from_grid(grid),
+            electric_field=electric_field,
         )
 
     def run(self, distribution: SliceDistribution) -> SliceTrackResult:
@@ -138,11 +149,17 @@ class DcBeamSimulation:
             config=self.config,
             spacecharge_solver=self.spacecharge_solver,
             boundary=self.boundary,
+            electric_field=self.electric_field,
         )
         n_live_final = int(result.live_mask()[-1].sum()) if len(result) else 0
         result_metadata = {
             "solver": _safe_summary(self.spacecharge_solver),
             "magnetic_field": _safe_summary(self.magnetic_field),
+            "electric_field": _safe_summary(
+                self.electric_field
+                if self.electric_field is not None
+                else ZeroElectricField()
+            ),
             "boundary": _safe_summary(self.boundary),
             "config": _config_summary(self.config),
             "particle_counts": {

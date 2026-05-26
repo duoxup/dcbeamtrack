@@ -34,7 +34,10 @@ pass `backend="scipy"` or `backend="pypardiso"` to the solver constructor.
 ## Current Public API
 
 The validated first path is a fixed-z slice simulation with rectangular FDM
-space charge and a CPU Boris pusher.
+space charge and a CPU Boris pusher. Every `DcBeamSimulation.*` factory
+also accepts an optional `electric_field=` for an external electric field
+(see `dcbeamtrack.{ZeroElectricField, UniformElectricField,
+RadialElectricField}`); the default is no external field.
 
 ```python
 import numpy as np
