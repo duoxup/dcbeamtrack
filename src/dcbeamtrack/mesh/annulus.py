@@ -115,6 +115,7 @@ class AnnulusGrid(CellGrid):
         object.__setattr__(self, "domain_bounds", domain_bounds)
         object.__setattr__(self, "radial_scales", radial_scales)
         object.__setattr__(self, "n_angular", n_ang)
+        object.__setattr__(self, "theta_offset", float(theta_offset))
 
     @staticmethod
     def _sector_polygon(a, b, r_in, r_out, th0, th1, xc0, yc0) -> np.ndarray:

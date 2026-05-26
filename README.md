@@ -93,6 +93,16 @@ Run any example from the repo root with `python examples/<name>.py`
 (`PYTHONPATH=src python examples/<name>.py` if the package is not pip-installed).
 Outputs land under `artifacts/examples/<stem>/`.
 
+## Visualization
+
+`dcbeamtrack.viz.plot_grid(grid, ax=None, *, show_centers=False, ...)` renders
+any `RectGrid` / `TriGrid` / `AnnulusGrid` instance — lattice lines for the
+rectangular case, polygon cells for the triangular/annular ones (annular cells
+are arc-tessellated so the central disk renders smoothly). `show_centers=True`
+overlays the cell-center markers used by
+`sample_slice_from_density_on_grid`. Requires the `[examples]` extra
+(matplotlib).
+
 ## Regression Tools
 
 `tests/test_api_result_regression.py` contains a small reference calculation that
