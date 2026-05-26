@@ -134,3 +134,47 @@ def test_circular_green_within_tolerance_of_analytic_off_grid():
     rel_ey = np.max(np.abs(fm_green.ey - fm_ref.ey)) / scale
     assert rel_ex <= 5.0e-1, f"Ex max rel error {rel_ex:.3e} > 50%"
     assert rel_ey <= 5.0e-1, f"Ey max rel error {rel_ey:.3e} > 50%"
+
+
+def test_dcbeamsimulation_analytic_mirror_charge_smoke():
+    from dcbeamtrack import (
+        CircularBoundary,
+        DcBeamSimulation,
+        SliceTrackResult,
+        TrackConfig,
+        UniformMagneticField,
+    )
+
+    radius = 1.0e-3
+    config = TrackConfig(dt=1.0e-12, steps=4, z0=0.0, vz0=1.0e7, snapshot_stride=1)
+    simulation = DcBeamSimulation.analytic_mirror_charge(
+        radius=radius,
+        magnetic_field=UniformMagneticField(),
+        config=config,
+    )
+
+    assert isinstance(simulation.boundary, CircularBoundary)
+    assert simulation.boundary.radius == radius
+    assert simulation.spacecharge_solver.radius == radius
+
+    rng = np.random.default_rng(13)
+    n = 12
+    r = rng.uniform(0.1 * radius, 0.5 * radius, size=n)
+    th = rng.uniform(0.0, 2.0 * np.pi, size=n)
+    x = r * np.cos(th)
+    y = r * np.sin(th)
+    vz0 = config.vz0
+    vx = vy = np.zeros(n)
+    vz = np.full(n, vz0)
+    px, py, pz = velocity_to_momentum_evc(vx, vy, vz)
+    initial = SliceDistribution(
+        z=0.0, x=x, y=y, px=px, py=py, pz=pz, t=np.zeros(n), lam=np.full(n, 1.0e-12)
+    )
+
+    result = simulation.run(initial)
+    assert isinstance(result, SliceTrackResult)
+    assert len(result) == config.steps + 1
+    final_r = np.hypot(result.final.x, result.final.y)
+    assert np.all(final_r <= radius + 1.0e-12)
+    assert result.metadata["solver"]["type"] == "AnalyticMirrorChargeSpaceChargeSolver"
+    assert result.metadata["boundary"]["type"] == "CircularBoundary"

@@ -10,6 +10,7 @@ from dcbeamtrack.config import TrackConfig
 from dcbeamtrack.fields import MagneticField
 from dcbeamtrack.mesh import RectGrid
 from dcbeamtrack.spacecharge import (
+    AnalyticMirrorChargeSpaceChargeSolver,
     CircularGreenSpaceChargeSolver,
     RectFdmCircularBoundarySolver,
     RectFdmSpaceChargeSolver,
@@ -65,6 +66,22 @@ class DcBeamSimulation:
             n_theta=n_theta,
             r_eps=r_eps,
         )
+        return cls(
+            magnetic_field=magnetic_field,
+            config=config,
+            spacecharge_solver=solver,
+            boundary=CircularBoundary(radius=radius),
+        )
+
+    @classmethod
+    def analytic_mirror_charge(
+        cls,
+        *,
+        radius: float,
+        magnetic_field: MagneticField,
+        config: TrackConfig,
+    ) -> "DcBeamSimulation":
+        solver = AnalyticMirrorChargeSpaceChargeSolver(radius=radius)
         return cls(
             magnetic_field=magnetic_field,
             config=config,
